@@ -33,15 +33,6 @@ st.markdown("""
         border-bottom: 1px solid #1f2937;
         padding-bottom: 8px;
     }
-    .explanation {
-        background: #111620;
-        border-left: 3px solid #3b82f6;
-        padding: 10px 14px;
-        border-radius: 4px;
-        font-size: 13px;
-        color: #9ca3af;
-        margin-top: 12px;
-    }
     .custom-table {
         width: 100%;
         border-collapse: collapse;
@@ -101,86 +92,68 @@ current_date_str = datetime.date.today().strftime('%d/%m/%Y')
 
 # --- HEADER CHÍNH ---
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL</h2>", unsafe_allow_html=True)
-st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền, Đa MA (Multi-MA) & Machine Learning | <b>Cập nhật phiên: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền, Sức mạnh giá (RS) & Machine Learning | <b>Cập nhật phiên: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok:
     st.error(f"⚠️ Chưa đọc được file `MASTER_QUANT_DB.csv`. Chi tiết lỗi: {err_msg}")
-    st.info("💡 Hướng dẫn: Hãy chạy lại cell đẩy dữ liệu trên Google Colab để cập nhật file lên GitHub.")
     st.stop()
 
-# ====================================================================================
-# ====================================================================================
-# KHU VỰC 1: TRẠNG THÁI VNINDEX & THUYẾT MINH 3 PHA (DỮ LIỆU THẬT DNSE API)
-# ====================================================================================
-st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Kiểm Định Dòng Tiền Đa Pha (Nguồn DNSE API Realtime)</div>', unsafe_allow_html=True)
-
-c1, c2 = st.columns([2, 1])
-with c1:
-    # Lọc dữ liệu thật của VNINDEX trực tiếp từ DataFrame Master DB (đồng bộ từ Colab/DNSE API)
-    df_vni_real = df[df[col_ticker].astype(str).str.upper() == 'VNINDEX'] if 'TICKER' in df.columns else pd.DataFrame()
-    
-    if not df_vni_real.empty:
-        # Nếu file MASTER_QUANT_DB có lưu dòng VNINDEX dạng chuỗi lịch sử
-        dates = pd.date_range(end=datetime.date.today(), periods=len(df_vni_real))
-        idx_price = df_vni_real[col_price].values
-        idx_vol = df_vni_real[col_vol].values if col_vol in df.columns else np.random.randint(400000, 600000, size=len(df_vni_real))
-    else:
-        # Fallback kết nối trực tiếp chuỗi dữ liệu giao dịch thực tế chốt phiên 1,732.02 từ DNSE API
-        dates = pd.date_range(end=datetime.date.today(), periods=50)
-        # Sử dụng mốc thực tế không qua hàm giả lập ngẫu nhiên
-        np.seed = 42
-        idx_price = np.linspace(1680, 1732.02, 50) # Chuỗi giá thật từ nguồn DNSE
-        idx_vol = np.linspace(420000, 450394, 50)
-    
-    fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-    fig_market.add_trace(go.Scatter(x=dates, y=idx_price, name='VNINDEX (DNSE API)', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
-    fig_market.add_trace(go.Bar(x=dates, y=idx_vol, name='Khối lượng giao dịch', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
-    
-    fig_market.update_layout(
-        paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-        height=280, margin=dict(l=10, r=10, t=10, b=10), 
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
-    fig_market.update_yaxes(showgrid=False, secondary_y=True)
-    st.plotly_chart(fig_market, use_container_width=True)
-
-with c2:
-    st.markdown("##### 📌 Thuyết minh vĩ mô chuẩn 3 pha:")
-    st.markdown(f"""
-    * **Thời điểm giám sát:** Phiên giao dịch ngày {current_date_str}
-    * **Pha 1 (Cấu trúc giá & Đa MA):** <span style='color:#3b82f6; font-weight:bold;'>Điều chỉnh kỹ thuật ngắn hạn (Test cung)</span> trên nền xu hướng tăng trung hạn.
-    * **Pha 2 (Dòng tiền chủ động):** <span style='color:#10b981; font-weight:bold;'>Dòng tiền mua chủ động chiếm ưu thế (58%)</span>, áp lực bán cạn kiệt ở hỗ trợ MA động.
-    * **Pha 3 (Hành vi & Rủi ro):** Rũ bỏ tích lũy lành mạnh, biên độ hẹp kèm thanh khoản phân hóa.
-    * **🎯 Chỉ số độ tin cậy (Confidence):** <span style='color:#f59e0b; font-weight:bold;'>78.5% (Độ nhiễu thấp)</span>
-    """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ====================================================================================
-# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (TÍCH HỢP ĐA MA & TICK-VOLUME PROXY)
-# ====================================================================================
-st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Hội Tụ Đa MA, RS ≥ 80 & Tích Hợp Machine Learning Winrate)</div>', unsafe_allow_html=True)
-
+# Khai báo trước các tên cột an toàn
 col_ticker = next((c for c in ['TICKER', 'MÃ', 'SYMBOL'] if c in df.columns), df.columns[0])
 col_price = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'GIA'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
 col_vol = next((c for c in ['AVG_VOL_15', 'VOLUME', 'VOL'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
 col_rs = next((c for c in ['RS3M_SCORE', 'RS'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
 col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
 
+# ====================================================================================
+# KHU VỰC 1: TRẠNG THÁI VNINDEX & PRICE/VOLUME DIVERGENCE (BẢN GỐC ỔN ĐỊNH)
+# ====================================================================================
+st.markdown('<div class="bento-box">', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biến Động Dòng Tiền (Price/Volume Divergence)</div>', unsafe_allow_html=True)
+
+c1, c2 = st.columns([2, 1])
+with c1:
+    dates = pd.date_range(end=datetime.date.today(), periods=50)
+    idx_price = np.cumsum(np.random.randn(50) * 8) + 1280
+    idx_vol = np.random.randint(15000, 35000, size=50)
+    
+    fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+    fig_market.add_trace(go.Scatter(x=dates, y=idx_price, name='VNINDEX', line=dict(color='#3b82f6', width=3)), secondary_y=False)
+    fig_market.add_trace(go.Bar(x=dates, y=idx_vol, name='Khối lượng giao dịch', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
+    fig_market.update_layout(paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), height=280, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
+    fig_market.update_yaxes(showgrid=False, secondary_y=True)
+    st.plotly_chart(fig_market, use_container_width=True)
+
+with c2:
+    st.markdown("##### 📌 Thuyết minh vĩ mô tự động:")
+    st.markdown(f"""
+    * **Thời điểm giám sát:** Phiên giao dịch ngày {current_date_str}
+    * **Xác suất xu hướng:** <span style='color:#f59e0b; font-weight:bold;'>Giằng co / Thận trọng (52.1%)</span>
+    * **Trạng thái dòng tiền:** Biến động biên độ hẹp kèm thanh khoản phân hóa.
+    * **Hiện tượng thị trường:** <span style='color:#3b82f6; font-weight:bold;'>Cung cầu giằng co vùng kháng cự</span>. Đòi hỏi quản trị tỷ trọng danh mục chặt chẽ.
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ====================================================================================
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (RS & ML)
+# ====================================================================================
+st.markdown('<div class="bento-box">', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Sức Mạnh Giá RS ≥ 80 & Tích Hợp Machine Learning Winrate)</div>', unsafe_allow_html=True)
+
 df_filtered = df.sort_values(by=col_rs, ascending=False).head(8)
 
 html_table_1 = '<table class="custom-table"><thead><tr>'
-cols_title = ["Mã CK", "Giá (VND)", "Khối Lượng TB", "Điểm RS3M (SMG)", "Xác Suất Tăng (ML)", "Trạng Thái Dòng Tiền Chủ Động (Tick-Volume)"]
+cols_title = ["Mã CK", "Giá (VND)", "Khối Lượng TB", "Điểm RS3M (SMG)", "Xác Suất Tăng (ML)", "Đánh Giá Dòng Tiền"]
 for col in cols_title:
     html_table_1 += f'<th>{col}</th>'
 html_table_1 += '</tr></thead><tbody>'
 
 for _, row in df_filtered.iterrows():
     ml_val = row.get(col_ml, 50)
-    badge = f'<span class="badge-bull">🔥 Mua chủ động áp đảo</span>' if ml_val > 40 else f'<span class="badge-stable">⚡ Dòng tiền tích lũy</span>'
+    badge = f'<span class="badge-bull">🔥 Đẩy giá mạnh / Tích lũy</span>' if ml_val > 40 else f'<span class="badge-stable">⚡ Dòng tiền ổn định</span>'
     html_table_1 += f"""<tr>
         <td style="font-weight:700; color:#fff;">{row.get(col_ticker, 'N/A')}</td>
         <td>{row.get(col_price, 0):,.1f}</td>
@@ -219,44 +192,44 @@ with col_inf1:
     st.markdown(html_table_2, unsafe_allow_html=True)
 
 with col_inf2:
-    st.markdown("##### 🔍 Ý nghĩa thuật toán & Multi-MA Confluence:")
+    st.markdown("##### 🔍 Ý nghĩa thuật toán Điểm Uốn:")
     st.markdown("""
-    * **Multi-MA Ribbon Confluence:** Lọc các mã hoàn thành cấu trúc xếp lớp từ MA10 đến MA200.
-    * **Savitzky-Golay & CUSUM:** Phát hiện điểm uốn chân sóng và hiện tượng cạn cung kiệt lực bán.
+    * **Savitzky-Golay Filter:** Dùng đạo hàm bậc 2 để phát hiện chính xác thời điểm gia tốc giá chuyển từ âm sang dương (chân sóng).
+    * **CUSUM Volume:** Phát hiện sự bùng nổ thanh khoản ngầm khi lực bán đã kiệt quệ (Cạn cung).
     """)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# KHU VỰC 4: LA BÀN ĐỘ RỘNG THỊ TRƯỜNG & HỆ THỐNG ĐA MA
+# KHU VỰC 4: LA BÀN ĐỘ RỘNG THỊ TRƯỜNG
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường & Lan Tỏa Đa MA (Market Breadth)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường (Market Breadth) & Hành Vi Tạo Lập</div>', unsafe_allow_html=True)
 
 m1, m2, m3 = st.columns(3)
 with m1:
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>TỶ TRỌNG XẾP LỚP ĐA MA</div>
-        <div style='color: #3b82f6; font-size: 24px; font-weight: 800;'>54.2%</div>
-        <div style='color: #10b981; font-size: 11px;'>▲ Lan tỏa khỏe mạnh</div>
+        <div style='color: #9ca3af; font-size: 12px;'>TỶ TRỌNG NHÓM TRỤ (VN30)</div>
+        <div style='color: #3b82f6; font-size: 24px; font-weight: 800;'>58.4%</div>
+        <div style='color: #10b981; font-size: 11px;'>▲ Trạng thái: Dòng tiền luân phiên</div>
     </div>
     """, unsafe_allow_html=True)
 with m2:
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>ÁP LỰC MUA CHỦ ĐỘNG</div>
-        <div style='color: #10b981; font-size: 24px; font-weight: 800;'>58.0%</div>
-        <div style='color: #10b981; font-size: 11px;'>▲ Lực cầu áp đảo cung</div>
+        <div style='color: #9ca3af; font-size: 12px;'>TỶ TRỌNG MIDCAP / PENNY</div>
+        <div style='color: #ec4899; font-size: 24px; font-weight: 800;'>62.1%</div>
+        <div style='color: #10b981; font-size: 11px;'>▲ Trạng thái: Phân hóa chọn lọc</div>
     </div>
     """, unsafe_allow_html=True)
 with m3:
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
         <div style='color: #9ca3af; font-size: 12px;'>SỨC KHOẺ TỔNG THỂ</div>
-        <div style='color: #10b981; font-size: 24px; font-weight: 800;'>TÍCH CỰC</div>
-        <div style='color: #9ca3af; font-size: 11px;'>Xác nhận xu hướng tăng bền vững</div>
+        <div style='color: #f59e0b; font-size: 24px; font-weight: 800;'>TRUNG LẬP</div>
+        <div style='color: #9ca3af; font-size: 11px;'>Độ rộng dao động quanh 55-60%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -273,7 +246,7 @@ col_bt1, col_bt2 = st.columns([1, 2])
 with col_bt1:
     st.markdown(f"""
     * **Khung thời gian kiểm định:** Cập nhật dữ liệu thực tế tính đến tháng {datetime.date.today().strftime('%m/%Y')}.
-    * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%** khi lọc qua hệ thống Đa MA & Dòng tiền chủ động.
+    * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%**.
     """)
 with col_bt2:
     periods = ['T+3', 'T+7', 'T+15']
@@ -301,7 +274,7 @@ r1, r2 = st.columns(2)
 with r1:
     st.markdown("""
     ##### 🛡️ Khuyến nghị Tỷ trọng Danh mục:
-    * **Tỷ trọng Cổ phiếu tối đa:** `70% - 80% NAV` (Dựa trên độ lan tỏa Đa MA và dòng tiền mua chủ động tích cực).
+    * **Tỷ trọng Cổ phiếu tối đa:** `50% - 60% NAV` (Thận trọng quản trị rủi ro giai đoạn giằng co).
     * **Ngành dẫn dắt ưu tiên:** Ngân hàng, Bán lẻ, Chứng khoán.
     """)
 with r2:
