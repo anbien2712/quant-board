@@ -1,134 +1,141 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
+import datetime
 
-# Cấu hình trang Dashboard
-st.set_page_config(page_title="Quant Trading Executive Dashboard", layout="wide", initial_sidebar_state="expanded")
+# Cấu hình giao diện Full Width
+st.set_page_config(page_title="Quant Trading Executive Dashboard", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS TÙY CHỈNH MÀU SẮC ĐỂ HIỂN THỊ CHỮ RÕ NÉT TRÊN NỀN TỐI ---
+# --- CSS BENTO GRID & DARK MODE CHUYÊN NGHIỆP ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0b0f19; color: #ffffff; }
+    .stApp { background-color: #0b0f19; color: #ffffff; font-family: 'Inter', sans-serif; }
     
-    .metric-card {
-        background: linear-gradient(135deg, #161b22 0%, #1f242d 100%);
-        border: 1px solid #30363d;
+    /* Thiết kế khung Card dạng Bento Grid chuẩn như CRM Dashboard */
+    .bento-card {
+        background: #141824;
+        border: 1px solid #1e2638;
         padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        height: 100%;
     }
     
-    h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
-    p, span, label, li { color: #e5e7eb !important; font-size: 14px; }
+    /* Typography phân cấp rõ ràng */
+    .card-title { color: #8a99ad; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .card-value { color: #ffffff; font-size: 32px; font-weight: 700; }
+    .card-sub { font-size: 12px; margin-top: 6px; font-weight: 500; }
     
-    .explanation-box {
-        background-color: #161b22;
-        border-left: 4px solid #00f2fe;
-        padding: 15px;
-        border-radius: 6px;
-        margin-bottom: 20px;
-        border-top: 1px solid #30363d;
-        border-right: 1px solid #30363d;
-        border-bottom: 1px solid #30363d;
-    }
+    /* Tùy chỉnh bảng dữ liệu tối màu đồng bộ */
+    dataframe, [data-testid="stTable"] { background-color: #141824 !important; }
+    
+    h1, h2, h3 { color: #ffffff !important; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- HEADER TITLE ---
-st.markdown("<h1 style='color: #00f2fe !important;'>⚡ QUANTITATIVE TRADING EXECUTIVE DASHBOARD</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color: #94a3b8 !important;'>Hệ thống giám sát vĩ mô, dòng tiền thông minh & định lượng kỹ thuật thời gian thực.</p>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #00f2fe; margin-bottom: 0;'>⚡ QUANTITATIVE TRADING TERMINAL</h2>", unsafe_allow_html=True)
+st.markdown("<p style='color: #8a99ad; font-size: 14px;'>Hệ thống giám sát vĩ mô, dòng tiền thông minh & định lượng kỹ thuật thời gian thực.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- HÀNG 1: CÁC THẺ CHỈ SỐ (METRICS CARDS) ---
-col1, col2, col3, col4 = st.columns(4)
+# --- HÀNG 1: CÁC KHUNG BENTO CARDS (CHUẨN MẪU CRM) ---
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🏛️ TỶ TRỌNG TRỤ (VN30)</h4>
-            <h2 style="color: #00f2fe !important; margin:8px 0; font-size:26px;">58.4%</h2>
-            <p style="color: #3fb950 !important; margin:0; font-size:12px; font-weight:bold;">▲ +3.2% (Đồng thuận tăng)</p>
+        <div class="bento-card">
+            <div class="card-title">🏛️ Tỷ trọng Trụ (VN30)</div>
+            <div class="card-value" style="color: #00f2fe;">58.4%</div>
+            <div class="card-sub" style="color: #3fb950;">▲ +3.2% Đồng thuận tăng</div>
         </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🌊 TỶ TRỌNG MIDCAP/PENNY</h4>
-            <h2 style="color: #ff007f !important; margin:8px 0; font-size:26px;">62.1%</h2>
-            <p style="color: #3fb950 !important; margin:0; font-size:12px; font-weight:bold;">▲ +5.1% (Lan tỏa rộng)</p>
+        <div class="bento-card">
+            <div class="card-title">🌊 Tỷ trọng Midcap</div>
+            <div class="card-value" style="color: #ff007f;">62.1%</div>
+            <div class="card-sub" style="color: #3fb950;">▲ +5.1% Lan tỏa rộng</div>
         </div>
     """, unsafe_allow_html=True)
 
 with col3:
     st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🔥 MÃ ĐẠT CHUẨN GRANGER</h4>
-            <h2 style="color: #58a6ff !important; margin:8px 0; font-size:26px;">42 Mã</h2>
-            <p style="color: #e5e7eb !important; margin:0; font-size:12px;">Dòng tiền lớn nhập cuộc</p>
+        <div class="bento-card">
+            <div class="card-title">🔥 Dòng tiền Granger</div>
+            <div class="card-value" style="color: #58a6ff;">42 Mã</div>
+            <div class="card-sub" style="color: #8a99ad;">Dòng tiền lớn xác nhận</div>
         </div>
     """, unsafe_allow_html=True)
 
 with col4:
     st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🚨 CẢNH BÁO BULL TRAP</h4>
-            <h2 style="color: #f85149 !important; margin:8px 0; font-size:26px;">3 Mã</h2>
-            <p style="color: #3fb950 !important; margin:0; font-size:12px;">▼ -2 Mã so với phiên trước</p>
+        <div class="bento-card">
+            <div class="card-title">🚨 Cảnh báo Bull Trap</div>
+            <div class="card-value" style="color: #f85149;">3 Mã</div>
+            <div class="card-sub" style="color: #3fb950;">▼ Giảm rủi ro phân phối</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col5:
+    st.markdown("""
+        <div class="bento-card">
+            <div class="card-title">🎯 Trạng thái Vĩ mô</div>
+            <div class="card-value" style="color: #3fb950; font-size: 24px; padding-top: 5px;">TÍCH CỰC</div>
+            <div class="card-sub" style="color: #8a99ad;">Hệ thống an toàn giao dịch</div>
         </div>
     """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- THUYẾT MINH CHI TIẾT ---
-st.markdown("""
-    <div class="explanation-box">
-        <strong style="color: #00f2fe; font-size: 15px;">💡 THUYẾT MINH CHI TIẾT TRẠNG THÁI THỊ TRƯỜNG HÔM NAY:</strong><br><br>
-        • <b style="color: #ffffff;">Cấu trúc dòng tiền:</b> Cả nhóm Trụ (VN30) và Midcap đều duy trì tỷ trọng dòng tiền trên 50%, xác nhận trạng thái <i>Đồng thuận tăng</i> diện rộng.<br>
-        • <b style="color: #ffffff;">Hành vi tạo lập:</b> Mô hình Granger ghi nhận 42 mã có dòng tiền thật dẫn dắt, rủi ro phân phối đỉnh ở mức thấp. Nhà đầu tư có thể tự tin gia tăng tỷ trọng ở các mã có điểm RS cao.
-    </div>
-""", unsafe_allow_html=True)
-
-# --- HÀNG 2: BIỂU ĐỒ TRỰC QUAN ---
+# --- HÀNG 2: BIỂU ĐỒ & PHÂN BỔ (CẬP NHẬT ĐÚNG TIMELINE THỰC TẾ ĐẾN HÔM NAY) ---
 col_left, col_right = st.columns([2, 1])
 
 with col_left:
-    st.subheader("📈 Biểu đồ Động Lượng Dòng Tiền (Trụ vs Midcap)")
+    st.markdown("### 📈 Động Lượng Dòng Tiền (Trụ vs Midcap)")
+    
+    # Cập nhật timeline tính từ 30 ngày trước đến ngày hiện tại (2026)
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=30)
+    dates = pd.date_range(start=start_date, end=end_date)
+    
+    np.random.seed(42)
     df_chart = pd.DataFrame({
-        'Ngày': pd.date_range(start='2026-02-01', periods=20),
-        'Nhóm Trụ (VN30)': np.cumsum(np.random.randn(20) + 0.4) + 100,
-        'Nhóm Midcap': np.cumsum(np.random.randn(20) + 0.6) + 95
+        'Ngày': dates,
+        'Nhóm Trụ (VN30)': np.cumsum(np.random.randn(len(dates)) + 0.3) + 100,
+        'Nhóm Midcap': np.cumsum(np.random.randn(len(dates)) + 0.5) + 95
     })
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_chart['Ngày'], y=df_chart['Nhóm Trụ (VN30)'], mode='lines+markers', name='Nhóm Trụ (VN30)', line=dict(color='#00f2fe', width=3)))
+    fig.add_trace(go.Scatter(x=df_chart['Ngày'], y=df_chart['Nhóm Trụ (VN30)'], mode='lines+markers', name='Nhóm Trụ (VN30)', line=dict(color='#00f2fe', width=3), marker=dict(size=4)))
     fig.add_trace(go.Scatter(x=df_chart['Ngày'], y=df_chart['Nhóm Midcap'], mode='lines', name='Nhóm Midcap', line=dict(color='#ff007f', width=2, dash='dot')))
     
     fig.update_layout(
-        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white', size=12),
-        margin=dict(l=10, r=10, t=20, b=10), height=320,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        paper_bgcolor='#141824', plot_bgcolor='#141824', font=dict(color='#8a99ad', size=12),
+        margin=dict(l=10, r=10, t=10, b=10), height=340,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(showgrid=True, gridcolor='#1e2638'),
+        yaxis=dict(showgrid=True, gridcolor='#1e2638')
     )
     st.plotly_chart(fig, use_container_width=True)
 
 with col_right:
-    st.subheader("📊 Phân Bổ Trạng Thái")
+    st.markdown("### 📊 Phân Bổ Trạng Thái")
     labels = ['Đẩy giá mạnh', 'Tích lũy bền', 'Kéo xào Vol', 'Bull Trap']
     values = [45, 30, 15, 10]
     
-    fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5, marker_colors=['#00f2fe', '#4facfe', '#ff9a9e', '#ff007f'])])
+    fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.55, marker_colors=['#00f2fe', '#4facfe', '#ff9a9e', '#ff007f'])])
     fig_pie.update_layout(
-        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white', size=12),
-        margin=dict(l=10, r=10, t=20, b=10), height=320, showlegend=True,
+        paper_bgcolor='#141824', plot_bgcolor='#141824', font=dict(color='#8a99ad', size=12),
+        margin=dict(l=10, r=10, t=10, b=10), height=340, showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
 
-# --- HÀNG 3: BẢNG XẾP HẠNG TOP CỔ PHIẾU ---
-st.subheader("🏆 Bảng Xếp Hạng Top Cổ Phiếu Dẫn Dắt & Thuyết Minh Dòng Tiền")
+# --- HÀNG 3: BẢNG DỮ LIỆU CHUYÊN NGHIỆP (DARK MODE) ---
+st.markdown("### 🏆 Bảng Xếp Hạng Top Cổ Phiếu Dẫn Dắt & Thuyết Minh Dòng Tiền")
 
 df_top = pd.DataFrame({
     "STT": [1, 2, 3, 4, 5],
