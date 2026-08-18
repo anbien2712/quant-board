@@ -108,10 +108,10 @@ col_flow = next((c for c in ['FLOW', 'TRẠNG THÁI'] if c in df.columns), None)
 col_date = next((c for c in ['DATE', 'TIME', 'NGAY'] if c in df.columns), None)
 
 # ====================================================================================
-# KHU VỰC 1: TRẠNG THÁI VNINDEX (DỮ LIỆU THẬT TỪ 01/01/2023 ĐẾN 18/08/2026)
+# KHU VỰC 1: TRẠNG THÁI VNINDEX (LỊCH SỬ THẬT TỪ 01/01/2023 ĐẾN 18/08/2026)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Dữ Liệu Lịch Sử Thực Tế (01/01/2023 - 18/08/2026)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (01/01/2023 - 18/08/2026)</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 with c1:
