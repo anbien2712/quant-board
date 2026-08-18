@@ -3,35 +3,44 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
-# Cấu hình trang Dashboard tối ưu không gian rộng
+# Cấu hình trang Dashboard
 st.set_page_config(page_title="Quant Trading Executive Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS TÙY CHỈNH GIAO DIỆN DARK MODE CAO CẤP ---
+# --- CSS TÙY CHỈNH MÀU SẮC ĐỂ HIỂN THỊ CHỮ RÕ NÉT TRÊN NỀN TỐI ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0b0f19; color: #f3f4f6; }
+    .stApp { background-color: #0b0f19; color: #ffffff; }
+    
+    /* Thẻ card chỉ số với viền sáng và chữ cực kỳ rõ ràng */
     .metric-card {
         background: linear-gradient(135deg, #161b22 0%, #1f242d 100%);
         border: 1px solid #30363d;
         padding: 20px;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
-    h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-    p, span, label { color: #9ca3af !important; }
+    
+    /* Ép toàn bộ tiêu đề, nhãn chữ, đoạn văn thành màu trắng sáng / xám sáng */
+    h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
+    p, span, label, li { color: #e5e7eb !important; font-size: 14px; }
+    
+    /* Khung thuyết minh nổi bật */
     .explanation-box {
         background-color: #161b22;
         border-left: 4px solid #00f2fe;
         padding: 15px;
-        border-radius: 4px;
+        border-radius: 6px;
         margin-bottom: 20px;
+        border-top: 1px solid #30363d;
+        border-right: 1px solid #30363d;
+        border-bottom: 1px solid #30363d;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- HEADER TITLE ---
 st.markdown("<h1 style='color: #00f2fe !important;'>⚡ QUANTITATIVE TRADING EXECUTIVE DASHBOARD</h1>", unsafe_allow_html=True)
-st.markdown("Hệ thống giám sát vĩ mô, dòng tiền thông minh & định lượng kỹ thuật thời gian thực.")
+st.markdown("<p style='color: #94a3b8 !important;'>Hệ thống giám sát vĩ mô, dòng tiền thông minh & định lượng kỹ thuật thời gian thực.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # --- HÀNG 1: CÁC THẺ CHỈ SỐ (METRICS CARDS) ---
@@ -40,56 +49,55 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #9ca3af; margin:0; font-size:13px;">🏛️ TỶ TRỌNG TRỤ (VN30)</h4>
-            <h2 style="color: #00f2fe; margin:8px 0; font-size:26px;">58.4%</h2>
-            <p style="color: #3fb950; margin:0; font-size:12px;">▲ +3.2% (Đồng thuận tăng)</p>
+            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🏛️ TỶ TRỌNG TRỤ (VN30)</h4>
+            <h2 style="color: #00f2fe !important; margin:8px 0; font-size:26px;">58.4%</h2>
+            <p style="color: #3fb950 !important; margin:0; font-size:12px; font-weight:bold;">▲ +3.2% (Đồng thuận tăng)</p>
         </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #9ca3af; margin:0; font-size:13px;">🌊 TỶ TRỌNG MIDCAP/PENNY</h4>
-            <h2 style="color: #ff007f; margin:8px 0; font-size:26px;">62.1%</h2>
-            <p style="color: #3fb950; margin:0; font-size:12px;">▲ +5.1% (Lan tỏa rộng)</p>
+            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🌊 TỶ TRỌNG MIDCAP/PENNY</h4>
+            <h2 style="color: #ff007f !important; margin:8px 0; font-size:26px;">62.1%</h2>
+            <p style="color: #3fb950 !important; margin:0; font-size:12px; font-weight:bold;">▲ +5.1% (Lan tỏa rộng)</p>
         </div>
     """, unsafe_allow_html=True)
 
 with col3:
     st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #9ca3af; margin:0; font-size:13px;">🔥 MÃ ĐẠT CHUẨN GRANGER</h4>
-            <h2 style="color: #58a6ff; margin:8px 0; font-size:26px;">42 Mã</h2>
-            <p style="color: #8b949e; margin:0; font-size:12px;">Dòng tiền lớn nhập cuộc</p>
+            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🔥 MÃ ĐẠT CHUẨN GRANGER</h4>
+            <h2 style="color: #58a6ff !important; margin:8px 0; font-size:26px;">42 Mã</h2>
+            <p style="color: #e5e7eb !important; margin:0; font-size:12px;">Dòng tiền lớn nhập cuộc</p>
         </div>
     """, unsafe_allow_html=True)
 
 with col4:
     st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #9ca3af; margin:0; font-size:13px;">🚨 CẢNH BÁO BULL TRAP</h4>
-            <h2 style="color: #f85149; margin:8px 0; font-size:26px;">3 Mã</h2>
-            <p style="color: #3fb950; margin:0; font-size:12px;">▼ -2 Mã so với phiên trước</p>
+            <h4 style="color: #94a3b8 !important; margin:0; font-size:13px;">🚨 CẢNH BÁO BULL TRAP</h4>
+            <h2 style="color: #f85149 !important; margin:8px 0; font-size:26px;">3 Mã</h2>
+            <p style="color: #3fb950 !important; margin:0; font-size:12px;">▼ -2 Mã so với phiên trước</p>
         </div>
     """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- THUYẾT MINH NHANH CHO NHÀ ĐẦU TƯ (EXECUTIVE SUMMARY) ---
+# --- THUYẾT MINH CHI TIẾT ---
 st.markdown("""
     <div class="explanation-box">
-        <strong style="color: #00f2fe;">💡 THUYẾT MINH CHI TIẾT TRẠNG THÁI THỊ TRƯỜNG HÔM NAY:</strong><br>
-        • <b>Cấu trúc dòng tiền:</b> Cả nhóm Trụ (VN30) và Midcap đều duy trì tỷ trọng dòng tiền trên 50%, xác nhận trạng thái <i>Đồng thuận tăng</i> diện rộng.<br>
-        • <b>Hành vi tạo lập:</b> Mô hình Granger ghi nhận 42 mã có dòng tiền thật dẫn dắt, rủi ro phân phối đỉnh ở mức thấp. Nhà đầu tư có thể tự tin gia tăng tỷ trọng ở các mã có điểm RS cao.
+        <strong style="color: #00f2fe; font-size: 15px;">💡 THUYẾT MINH CHI TIẾT TRẠNG THÁI THỊ TRƯỜNG HÔM NAY:</strong><br><br>
+        • <b style="color: #ffffff;">Cấu trúc dòng tiền:</b> Cả nhóm Trụ (VN30) và Midcap đều duy trì tỷ trọng dòng tiền trên 50%, xác nhận trạng thái <i>Đồng thuận tăng</i> diện rộng.<br>
+        • <b style="color: #ffffff;">Hành vi tạo lập:</b> Mô hình Granger ghi nhận 42 mã có dòng tiền thật dẫn dắt, rủi ro phân phối đỉnh ở mức thấp. Nhà đầu tư có thể tự tin gia tăng tỷ trọng ở các mã có điểm RS cao.
     </div>
 """, unsafe_allow_html=True)
 
-# --- HÀNG 2: BIỂU ĐỒ TRỰC QUAN (INTERACTIVE CHARTS) ---
+# --- HÀNG 2: BIỂU ĐỒ TRỰC QUAN ---
 col_left, col_right = st.columns([2, 1])
 
-with col_left:
+with colleft_ := col_left:
     st.subheader("📈 Biểu đồ Động Lượng Dòng Tiền (Trụ vs Midcap)")
-    # Giả lập dữ liệu biểu đồ thời gian thực
     df_chart = pd.DataFrame({
         'Ngày': pd.date_range(start='2026-02-01', periods=20),
         'Nhóm Trụ (VN30)': np.cumsum(np.random.randn(20) + 0.4) + 100,
@@ -101,7 +109,7 @@ with col_left:
     fig.add_trace(go.Scatter(x=df_chart['Ngày'], y=df_chart['Nhóm Midcap'], mode='lines', name='Nhóm Midcap', line=dict(color='#ff007f', width=2, dash='dot')))
     
     fig.update_layout(
-        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white'),
+        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white', size=12),
         margin=dict(l=10, r=10, t=20, b=10), height=320,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
@@ -114,7 +122,7 @@ with col_right:
     
     fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5, marker_colors=['#00f2fe', '#4facfe', '#ff9a9e', '#ff007f'])])
     fig_pie.update_layout(
-        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white'),
+        paper_bgcolor='#161b22', plot_bgcolor='#161b22', font=dict(color='white', size=12),
         margin=dict(l=10, r=10, t=20, b=10), height=320, showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
     )
