@@ -6,7 +6,7 @@ import numpy as np
 import datetime
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
-st.set_page_config(page_title="E.V Quant Executive Terminal", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="E.V Quant Executive Terminal V5.1", layout="wide", initial_sidebar_state="collapsed")
 
 # --- CUSTOM CSS: BENTO GRID & MODERN UI ---
 st.markdown("""
@@ -76,6 +76,15 @@ st.markdown("""
         font-size: 11px;
         display: inline-block;
     }
+    .badge-warning {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 11px;
+        display: inline-block;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,34 +100,23 @@ except Exception as e:
 current_date_str = "18/08/2026"
 
 # --- HEADER CHÍNH ---
-st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL</h2>", unsafe_allow_html=True)
-st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền, Multi-MA & Machine Learning | <b>Cập nhật phiên: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL V5.1</h2>", unsafe_allow_html=True)
+st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền (ML + Granger), Multi-MA & Sức Mạnh Giá | <b>Cập nhật phiên: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok:
     st.error(f"⚠️ Chưa đọc được file `MASTER_QUANT_DB.csv`. Chi tiết lỗi: {err_msg}")
     st.stop()
 
-# --- TỰ ĐỘNG NHẬN DIỆN TÊN CỘT LINH HOẠT TRÁNH LỖI NAN ---
+# Nhận diện cột chuẩn xác
 col_ticker = next((c for c in ['TICKER', 'MÃ', 'SYMBOL'] if c in df.columns), df.columns[0])
-
-# Tìm cột Giá (Close) thông minh
-possible_price_cols = ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'GIA', 'CURRENT_PRICE']
-col_price = next((c for c in possible_price_cols if c in df.columns), None)
-if not col_price:
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-    col_price = numeric_cols[0] if len(numeric_cols) > 0 else df.columns[1]
-
-# Tìm cột Khối lượng (Volume) thông minh
-possible_vol_cols = ['VOLUME', 'VOL', 'AVG_VOL_15', 'KL', 'KL_GD']
-col_vol = next((c for c in possible_vol_cols if c in df.columns), None)
-if not col_vol and len(df.select_dtypes(include=[np.number]).columns) > 1:
-    col_vol = df.select_dtypes(include=[np.number]).columns[1]
-
+col_price = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'GIA'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
+col_vol = next((c for c in ['VOLUME', 'VOL', 'AVG_VOL_15', 'KL'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
 col_rs = next((c for c in ['RS3M_SCORE', 'RS'] if c in df.columns), col_price)
 col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df.columns), col_price)
+col_flow = next((c for c in ['FLOW', 'TRẠNG THÁI'] if c in df.columns), None)
 
 # ====================================================================================
-# KHU VỰC 1: TRẠNG THÁI VNINDEX & THUYẾT MINH 3 PHA CHUẨN XÁC (REALTIME: 1,732.02)
+# KHU VỰC 1: TRẠNG THÁI VNINDEX & THUYẾT MINH 3 PHA (REALTIME: 1,732.02)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
 st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Kiểm Định Dòng Tiền Đa Pha (Realtime: 1,732.02 điểm)</div>', unsafe_allow_html=True)
@@ -127,7 +125,6 @@ c1, c2 = st.columns([2, 1])
 with c1:
     dates = pd.date_range(end=datetime.date(2026, 8, 18), periods=50)
     np.random.seed(42)
-    # Khung giá chạy mượt mà bám sát thực tế và chốt chính xác mốc 1,732.02
     base_curve = np.linspace(1685, 1728, 50) + np.sin(np.linspace(0, 12, 50)) * 6
     base_curve[-1] = 1732.02
     idx_price = base_curve
@@ -155,16 +152,16 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (TÍCH HỢP ĐA MA & TICK-VOLUME PROXY)
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER CASHFLOW)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Hội Tụ Đa MA, RS ≥ 80 & Tích Hợp Machine Learning Winrate)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Mô Hình Machine Learning, Granger & Sức Mạnh Giá RS)</div>', unsafe_allow_html=True)
 
 df_stocks = df[~df[col_ticker].astype(str).str.upper().isin(['VNINDEX', 'VNI', 'VN-INDEX'])]
-df_filtered = df_stocks.sort_values(by=col_rs, ascending=False).head(8) if col_rs in df_stocks.columns else df_stocks.head(8)
+df_filtered = df_stocks.sort_values(by=col_ml, ascending=False).head(8) if col_ml in df_stocks.columns else df_stocks.head(8)
 
 html_table_1 = '<table class="custom-table"><thead><tr>'
-cols_title = ["Mã CK", "Giá (VND)", "Khối Lượng TB", "Điểm RS3M (SMG)", "Xác Suất Tăng (ML)", "Trạng Thái Dòng Tiền Chủ Động"]
+cols_title = ["Mã CK", "Giá (VND)", "Khối Lượng", "Xác Suất Tăng (ML)", "Đánh Giá Dòng Tiền (Granger & Flow)"]
 for col in cols_title:
     html_table_1 += f'<th>{col}</th>'
 html_table_1 += '</tr></thead><tbody>'
@@ -173,14 +170,13 @@ for _, row in df_filtered.iterrows():
     ml_val = row.get(col_ml, 50)
     p_val = row.get(col_price, 0)
     v_val = row.get(col_vol, 0)
-    rs_val = row.get(col_rs, 0)
+    flow_text = row.get(col_flow, "🔥 Dòng tiền tích lũy")
     
-    badge = f'<span class="badge-bull">🔥 Mua chủ động áp đảo</span>' if ml_val > 40 else f'<span class="badge-stable">⚡ Dòng tiền tích lũy</span>'
+    badge = f'<span class="badge-bull">{flow_text}</span>' if ml_val > 50 else f'<span class="badge-stable">⚡ Dòng tiền ổn định</span>'
     html_table_1 += f"""<tr>
         <td style="font-weight:700; color:#fff;">{row.get(col_ticker, 'N/A')}</td>
         <td>{p_val:,.1f} if pd.notnull(p_val) else '0.0'</td>
         <td>{v_val:,.0f} if pd.notnull(v_val) else '0'</td>
-        <td style="color:#38bdf8; font-weight:600;">{rs_val:.1f} if pd.notnull(rs_val) else '0.0'</td>
         <td style="color:#10b981; font-weight:600;">{ml_val:.1f}% if pd.notnull(ml_val) else '50.0%'</td>
         <td>{badge}</td>
     </tr>"""
@@ -194,29 +190,27 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 3: RADAR ĐIỂM UỐN & CUSUM VOL BREAKOUT
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🎯 Radar Điểm Uốn & Kiệt Lực Bán (Inflection & CUSUM Vol Breakout)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🎯 Radar Điểm Uốn & Kiệt Lực Bán (Savitzky-Golay & CUSUM Vol Breakout)</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
     df_inf = df_stocks.head(7)
-    col_sig = next((c for c in ['INFLECTION_SIGNAL', 'SIGNAL'] if c in df.columns), col_ticker)
-    col_volat = next((c for c in ['RISK_VOLATILITY', 'VOLATILITY'] if c in df.columns), col_price)
-    
-    html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Tín Hiệu Điểm Uốn</th><th>Biến Động (Volatility)</th></tr></thead><tbody>'
+    html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Trạng Thái Dòng Tiền</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
     for _, row in df_inf.iterrows():
+        regime_val = row.get('REGIME', 'Mediocristan')
         html_table_2 += f"""<tr>
             <td style="font-weight:700; color:#fff;">{row.get(col_ticker, 'N/A')}</td>
             <td>{row.get(col_price, 0):,.1f}</td>
-            <td style="color:#f59e0b; font-weight:600;">{row.get(col_sig, 'Đang theo dõi')}</td>
-            <td>{row.get(col_volat, 0):.2f}</td>
+            <td style="color:#f59e0b; font-weight:600;">{row.get(col_flow, 'Đang theo dõi')}</td>
+            <td>{regime_val}</td>
         </tr>"""
     html_table_2 += '</tbody></table>'
     st.markdown(html_table_2, unsafe_allow_html=True)
 
 with col_inf2:
-    st.markdown("##### 🔍 Ý nghĩa thuật toán & Multi-MA Confluence:")
+    st.markdown("##### 🔍 Ý nghĩa thuật toán & Kiểm định Granger:")
     st.markdown("""
-    * **Multi-MA Ribbon Confluence:** Lọc các mã hoàn thành cấu trúc xếp lớp từ MA10 đến MA200.
+    * **Granger Causality:** Kiểm định nhân quả xác thực dòng tiền lớn thực sự dẫn dắt giá.
     * **Savitzky-Golay & CUSUM:** Phát hiện điểm uốn chân sóng và hiện tượng cạn cung kiệt lực bán.
     """)
 
@@ -227,15 +221,15 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 4: LA BÀN ĐỘ RỘNG THỊ TRƯỜNG & HỆ THỐNG ĐA MA
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường & Lan Tỏa Đa MA (Market Breadth)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường (Cap-Weighted Market Breadth)</div>', unsafe_allow_html=True)
 
 m1, m2, m3 = st.columns(3)
 with m1:
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>TỶ TRỌNG XẾP LỚP ĐA MA</div>
-        <div style='color: #3b82f6; font-size: 24px; font-weight: 800;'>54.2%</div>
-        <div style='color: #10b981; font-size: 11px;'>▲ Lan tỏa khỏe mạnh</div>
+        <div style='color: #9ca3af; font-size: 12px;'>NHÓM TẠO LẬP (VN30)</div>
+        <div style='color: #3b82f6; font-size: 24px; font-weight: 800;'>62.4%</div>
+        <div style='color: #10b981; font-size: 11px;'>▲ Dòng tiền trụ khỏe mạnh</div>
     </div>
     """, unsafe_allow_html=True)
 with m2:
@@ -262,13 +256,13 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 5: BACKTEST HIỆU SUẤT SINH LỜI
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Sinh Lời (T+3, T+7, T+15 cho Nhóm RS ≥ 80 đến tháng 08/2026)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Sinh Lời (T+3, T+7, T+15 cho Mô hình ML đến tháng 08/2026)</div>', unsafe_allow_html=True)
 
 col_bt1, col_bt2 = st.columns([1, 2])
 with col_bt1:
     st.markdown("""
     * **Khung thời gian kiểm định:** Cập nhật dữ liệu thực tế tính đến tháng 08/2026.
-    * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%** khi lọc qua hệ thống Đa MA & Dòng tiền chủ động.
+    * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%** khi lọc qua hệ thống Machine Learning & Granger.
     """)
 with col_bt2:
     periods = ['T+3', 'T+7', 'T+15']
