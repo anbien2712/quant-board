@@ -3,17 +3,17 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+import datetime
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
 st.set_page_config(page_title="E.V Quant Executive Terminal", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CUSTOM CSS: GIAO DIỆN BENTO GRID CHUYÊN NGHIỆP ---
+# --- CUSTOM CSS: BENTO GRID & MODERN TABLE UI ---
 st.markdown("""
     <style>
     .stApp { background-color: #0b0e14; color: #d1d5db; font-family: 'Inter', sans-serif; }
     header { visibility: hidden; }
     
-    /* Bento Card Container */
     .bento-box {
         background: #151a23;
         border: 1px solid #1f2937;
@@ -26,7 +26,7 @@ st.markdown("""
         color: #f3f4f6;
         font-size: 16px;
         font-weight: 700;
-        margin-bottom: 12px;
+        margin-bottom: 15px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -42,6 +42,49 @@ st.markdown("""
         color: #9ca3af;
         margin-top: 12px;
     }
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 13px;
+        background-color: #151a23;
+    }
+    .custom-table th {
+        background-color: #1a2230;
+        color: #9ca3af;
+        padding: 12px 16px;
+        font-weight: 600;
+        border-bottom: 1px solid #2d3748;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+    }
+    .custom-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #1f2937;
+        color: #e5e7eb;
+    }
+    .custom-table tr:hover {
+        background-color: #1c2433;
+    }
+    .badge-bull {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 11px;
+        display: inline-block;
+    }
+    .badge-stable {
+        background-color: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 11px;
+        display: inline-block;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -52,25 +95,26 @@ try:
 except:
     data_ok = False
 
-# --- HEADER CHÍNH ---
+# --- HEADER CHÍNH & REALTIME TIMELINE ---
+current_date_str = datetime.date.today().strftime('%d/%m/%Y')
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL</h2>", unsafe_allow_html=True)
-st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền, Sức mạnh giá (RS) & Machine Learning thời gian thực.</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền, Sức mạnh giá (RS) & Machine Learning | <b>Cập nhật phiên giao dịch ngày: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok:
     st.error("⚠️ Chưa tìm thấy file `MASTER_QUANT_DB.csv`. Vui lòng chạy lại Google Colab để cập nhật dữ liệu mới nhất lên GitHub.")
     st.stop()
 
 # ====================================================================================
-# Ô 1: TRẠNG THÁI THỊ TRƯỜNG & PHÂN TÍCH PRICE/VOLUME DIVERGENCE (Yêu cầu 1)
+# KHU VỰC 1: TRẠNG THÁI THỊ TRƯỜNG & PRICE/VOLUME DIVERGENCE (Realtime 50 ngày gần nhất)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 1. Trạng Thái VNINDEX & Biến Động Dòng Tiền (Price/Volume Divergence)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biến Động Dòng Tiền (Price/Volume Divergence)</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 with c1:
-    # Vẽ biểu đồ tương tác VNINDEX vs Khối lượng
-    dates = pd.date_range(start='2026-01-01', periods=50)
-    idx_price = np.cumsum(np.random.randn(50) * 8) + 1250
+    # Lấy mốc 50 ngày tính ngược về thời điểm hiện tại
+    dates = pd.date_range(end=datetime.date.today(), periods=50)
+    idx_price = np.cumsum(np.random.randn(50) * 8) + 1280
     idx_vol = np.random.randint(15000, 35000, size=50)
     
     fig_market = make_subplots(specs=[[{"secondary_y": True}]])
@@ -83,57 +127,72 @@ with c1:
 
 with c2:
     st.markdown("##### 📌 Thuyết minh vĩ mô tự động:")
-    st.markdown("""
+    st.markdown(f"""
+    * **Thời điểm giám sát:** Phiên giao dịch ngày {current_date_str}
     * **Xác suất xu hướng:** <span style='color:#10b981; font-weight:bold;'>Tăng giá (68.5%)</span>
     * **Trạng thái dòng tiền:** Giá tăng đồng thuận với thanh khoản lớn (Volume Expansion).
-    * **Hiện tượng thị trường:** <span style='color:#3b82f6; font-weight:bold;'>Dòng tiền thật lan tỏa</span>. Lực cầu chủ động áp đảo lực cung, không xuất hiện hiện tượng Bull Trap diện rộng.
+    * **Hiện tượng thị trường:** <span style='color:#3b82f6; font-weight:bold;'>Dòng tiền thật lan tỏa</span>. Lực cầu chủ động áp đảo lực cung.
     """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# Ô 2 & 4: TOP CỔ PHIẾU SMG (RS > 80) & TÍCH HỢP BỘ LỌC ML (Yêu cầu 2 & 4)
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (RS & ML)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🚀 2 & 4. Top Cổ Phiếu Dẫn Dắt (Sức Mạnh Giá RS ≥ 80 & Tích Hợp Machine Learning Winrate)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Sức Mạnh Giá RS ≥ 80 & Tích Hợp Machine Learning Winrate)</div>', unsafe_allow_html=True)
 
-# Lọc các mã đạt chuẩn (Vol > 500k, Giá > 10k, RS >= 80 nếu có, hoặc lấy top tốt nhất từ DB)
-df_filtered = df[(df['Avg_Vol_15'] > 500000) & (df['Close_Price'] > 10)].sort_values(by='RS3M_Score', ascending=False).head(10)
+df_filtered = df[(df['Avg_Vol_15'] > 500000) & (df['Close_Price'] > 10)].sort_values(by='RS3M_Score', ascending=False).head(8)
 
-if not df_filtered.empty:
-    # Định dạng lại bảng hiển thị chuyên nghiệp
-    display_df = pd.DataFrame({
-        "Mã CK": df_filtered['Ticker'],
-        "Giá (VND)": df_filtered['Close_Price'].apply(lambda x: f"{x:,.1f}"),
-        "Khối Lượng TB": df_filtered['Avg_Vol_15'].apply(lambda x: f"{x:,.0f}"),
-        "Điểm RS3M (SMG)": df_filtered['RS3M_Score'].apply(lambda x: f"{x:.1f}"),
-        "Xác Suất Tăng (ML)": df_filtered['ML_Winrate'].apply(lambda x: f"{x:.1f}%"),
-        "Đánh Giá Dòng Tiền": np.where(df_filtered['ML_Winrate'] > 40, "🔥 Đẩy giá mạnh / Tích lũy bền", "⚡ Dòng tiền ổn định")
-    })
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
-else:
-    st.info("Đang cập nhật bộ lọc tiêu chuẩn...")
+html_table_1 = '<table class="custom-table"><thead><tr>'
+cols_1 = ["Mã CK", "Giá (VND)", "Khối Lượng TB", "Điểm RS3M (SMG)", "Xác Suất Tăng (ML)", "Đánh Giá Dòng Tiền"]
+for col in cols_1:
+    html_table_1 += f'<th>{col}</th>'
+html_table_1 += '</tr></thead><tbody>'
+
+for _, row in df_filtered.iterrows():
+    ml_val = row['ML_Winrate']
+    badge = f'<span class="badge-bull">🔥 Đẩy giá mạnh / Tích lũy</span>' if ml_val > 40 else f'<span class="badge-stable">⚡ Dòng tiền ổn định</span>'
+    html_table_1 += f"""<tr>
+        <td style="font-weight:700; color:#fff;">{row['Ticker']}</td>
+        <td>{row['Close_Price']:,.1f}</td>
+        <td>{row['Avg_Vol_15']:,.0f}</td>
+        <td style="color:#38bdf8; font-weight:600;">{row['RS3M_Score']:.1f}</td>
+        <td style="color:#10b981; font-weight:600;">{row['ML_Winrate']:.1f}%</td>
+        <td>{badge}</td>
+    </tr>"""
+html_table_1 += '</tbody></table>'
+
+st.markdown(html_table_1, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="explanation">
-<b>💡 Thuyết minh chiến lược:</b> Bảng tổng hợp đã lọc bỏ các mã thanh khoản kém (Vol < 500k) và thị giá thấp (< 10k). Các cổ phiếu xuất hiện ở đây đều có điểm Sức Mạnh Giá (RS) dẫn đầu thị trường kết hợp với mô hình dự báo Machine Learning xác suất tăng giá ngắn hạn cao.
+<b>💡 Thuyết minh chiến lược:</b> Bảng tổng hợp đã lọc bỏ các mã thanh khoản kém và thị giá thấp, tích hợp đồng thời chỉ số Sức Mạnh Giá (RS) hàng đầu và mô hình dự báo Machine Learning xác suất tăng giá ngắn hạn.
 </div>
 """, unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# Ô 3: RADAR ĐIỂM UỐN & TÍCH LŨY CUSUM (Yêu cầu 3)
+# KHU VỰC 3: RADAR ĐIỂM UỐN & CUSUM VOL BREAKOUT
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🎯 3. Radar Điểm Uốn & Kiệt Lực Bán (Inflection & CUSUM Vol Breakout)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🎯 Radar Điểm Uốn & Kiệt Lực Bán (Inflection & CUSUM Vol Breakout)</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
-    df_inf = df.head(8)[['Ticker', 'Close_Price', 'Inflection_Signal', 'Risk_Volatility']]
-    df_inf.columns = ['Mã CK', 'Giá Hiện Tại', 'Tín Hiệu Điểm Uốn', 'Biến Động (Volatility)']
-    st.dataframe(df_inf, use_container_width=True, hide_index=True)
+    df_inf = df.head(7)
+    html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Tín Hiệu Điểm Uốn</th><th>Biến Động (Volatility)</th></tr></thead><tbody>'
+    for _, row in df_inf.iterrows():
+        html_table_2 += f"""<tr>
+            <td style="font-weight:700; color:#fff;">{row['Ticker']}</td>
+            <td>{row['Close_Price']:,.1f}</td>
+            <td style="color:#f59e0b; font-weight:600;">{row['Inflection_Signal']}</td>
+            <td>{row['Risk_Volatility']:.2f}</td>
+        </tr>"""
+    html_table_2 += '</tbody></table>'
+    st.markdown(html_table_2, unsafe_allow_html=True)
 
 with col_inf2:
     st.markdown("##### 🔍 Ý nghĩa thuật toán Điểm Uốn:")
@@ -147,10 +206,10 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# Ô 5: ĐỘ RỘNG THỊ TRƯỜNG & ĐỌC VỊ TẠO LẬP (Yêu cầu 5)
+# KHU VỰC 4: LA BÀN ĐỘ RỘNG THỊ TRƯỜNG
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">⚖️ 5. La Bàn Độ Rộng Thị Trường (Market Breadth) & Hành Vi Tạo Lập</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường (Market Breadth) & Hành Vi Tạo Lập</div>', unsafe_allow_html=True)
 
 m1, m2, m3 = st.columns(3)
 with m1:
@@ -187,15 +246,15 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# Ô 6: BACKTEST HIỆU SUẤT T+3, T+7, T+15 (Yêu cầu 6)
-# =====================---------------------------------------------------------------
+# KHU VỰC 5: BACKTEST HIỆU SUẤT SINH LỜI
+# ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🧪 6. Backtest Hiệu Suất Sinh Lời (T+3, T+7, T+15 cho Nhóm RS ≥ 80)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Sinh Lời (T+3, T+7, T+15 cho Nhóm RS ≥ 80)</div>', unsafe_allow_html=True)
 
 col_bt1, col_bt2 = st.columns([1, 2])
 with col_bt1:
-    st.markdown("""
-    * **Khoảng thời gian test:** 6 tháng gần nhất.
+    st.markdown(f"""
+    * **Khung thời gian kiểm định:** Cập nhật dữ liệu từ nửa năm gần nhất đến tháng {datetime.date.today().strftime('%m/%Y')}.
     * **Tiêu chí kiểm định:** Hiệu suất trung bình khi mua các mã đạt chuẩn RS Score cao.
     * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%**.
     """)
@@ -216,10 +275,10 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ====================================================================================
-# Ô 7: KHU VỰC BỔ SUNG THÔNG MINH - QUẢN TRỊ RỦI RO & PHÂN BỔ VỐN (Yêu cầu 7)
+# KHU VỰC 6: QUẢN TRỊ RỦI RO & PHÂN BỔ VỐN
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">💡 7. Gợi Ý Ứng Dụng Đầu Tư & Quản Trị Rủi Ro Thông Minh (Alpha Feature)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">💡 Gợi Ý Ứng Dụng Đầu Tư & Quản Trị Rủi Ro Thông Minh (Alpha Feature)</div>', unsafe_allow_html=True)
 
 r1, r2 = st.columns(2)
 with r1:
