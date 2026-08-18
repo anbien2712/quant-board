@@ -11,7 +11,6 @@ st.markdown("""
     <style>
     .stApp { background-color: #0b0f19; color: #ffffff; }
     
-    /* Thẻ card chỉ số với viền sáng và chữ cực kỳ rõ ràng */
     .metric-card {
         background: linear-gradient(135deg, #161b22 0%, #1f242d 100%);
         border: 1px solid #30363d;
@@ -20,11 +19,9 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     
-    /* Ép toàn bộ tiêu đề, nhãn chữ, đoạn văn thành màu trắng sáng / xám sáng */
     h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
     p, span, label, li { color: #e5e7eb !important; font-size: 14px; }
     
-    /* Khung thuyết minh nổi bật */
     .explanation-box {
         background-color: #161b22;
         border-left: 4px solid #00f2fe;
@@ -96,7 +93,7 @@ st.markdown("""
 # --- HÀNG 2: BIỂU ĐỒ TRỰC QUAN ---
 col_left, col_right = st.columns([2, 1])
 
-with colleft_ := col_left:
+with col_left:
     st.subheader("📈 Biểu đồ Động Lượng Dòng Tiền (Trụ vs Midcap)")
     df_chart = pd.DataFrame({
         'Ngày': pd.date_range(start='2026-02-01', periods=20),
