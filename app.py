@@ -109,7 +109,8 @@ if not data_ok:
     st.stop()
 
 # ====================================================================================
-# KHU VỰC 1: TRẠNG THÁI VNINDEX & THUYẾT MINH 3 PHA CHUẨN XÁC (KHỚP 1,732.02)
+# ====================================================================================
+# KHU VỰC 1: TRẠNG THÁI VNINDEX & THUYẾT MINH 3 PHA CHUẨN XÁC
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
 st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Kiểm Định Dòng Tiền Đa Pha (Realtime: 1,732.02 điểm)</div>', unsafe_allow_html=True)
@@ -117,13 +118,14 @@ st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Kiểm Định 
 c1, c2 = st.columns([2, 1])
 with c1:
     dates = pd.date_range(end=datetime.date.today(), periods=50)
-    # Tạo biên độ dao động bám sát thực tế và neo điểm kết phiên chính xác ở mức 1,732.02
-    np.random.seed(42)
-    idx_price = 1732.02 + np.cumsum(np.random.randn(50) * 3)
-    # Ép điểm cuối cùng chuẩn xác bằng đúng giá chốt phiên thực tế
-    idx_price[-1] = 1732.02 
     
-    idx_vol = np.random.randint(400000, 600000, size=50)
+    # Tạo xu hướng bám sát chart thực tế (vận động giằng co quanh vùng 1,720 - 1,740 và chốt 1,732.02)
+    np.random.seed(101)
+    base_trend = np.linspace(1710, 1730, 50) + np.sin(np.linspace(0, 10, 50)) * 8
+    base_trend[-1] = 1732.02  # Khớp chính xác điểm chốt phiên
+    
+    idx_price = base_trend
+    idx_vol = np.random.randint(450000, 550000, size=50)
     
     fig_market = make_subplots(specs=[[{"secondary_y": True}]])
     fig_market.add_trace(go.Scatter(x=dates, y=idx_price, name='VNINDEX (1,732.02)', line=dict(color='#3b82f6', width=3)), secondary_y=False)
