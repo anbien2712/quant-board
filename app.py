@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import datetime
 
 # Cấu hình giao diện Full Width
@@ -11,7 +12,6 @@ st.markdown("""
     <style>
     .stApp { background-color: #0b0f19; color: #ffffff; font-family: 'Inter', sans-serif; }
     
-    /* Thiết kế khung Card dạng Bento Grid chuẩn như CRM Dashboard */
     .bento-card {
         background: #141824;
         border: 1px solid #1e2638;
@@ -21,13 +21,9 @@ st.markdown("""
         height: 100%;
     }
     
-    /* Typography phân cấp rõ ràng */
     .card-title { color: #8a99ad; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
     .card-value { color: #ffffff; font-size: 32px; font-weight: 700; }
     .card-sub { font-size: 12px; margin-top: 6px; font-weight: 500; }
-    
-    /* Tùy chỉnh bảng dữ liệu tối màu đồng bộ */
-    dataframe, [data-testid="stTable"] { background-color: #141824 !important; }
     
     h1, h2, h3 { color: #ffffff !important; font-weight: 700; }
     </style>
@@ -38,7 +34,7 @@ st.markdown("<h2 style='color: #00f2fe; margin-bottom: 0;'>⚡ QUANTITATIVE TRAD
 st.markdown("<p style='color: #8a99ad; font-size: 14px;'>Hệ thống giám sát vĩ mô, dòng tiền thông minh & định lượng kỹ thuật thời gian thực.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- HÀNG 1: CÁC KHUNG BENTO CARDS (CHUẨN MẪU CRM) ---
+# --- HÀNG 1: CÁC KHUNG BENTO CARDS ---
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
@@ -88,13 +84,12 @@ with col5:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- HÀNG 2: BIỂU ĐỒ & PHÂN BỔ (CẬP NHẬT ĐÚNG TIMELINE THỰC TẾ ĐẾN HÔM NAY) ---
+# --- HÀNG 2: BIỂU ĐỒ & PHÂN BỔ ---
 col_left, col_right = st.columns([2, 1])
 
 with col_left:
     st.markdown("### 📈 Động Lượng Dòng Tiền (Trụ vs Midcap)")
     
-    # Cập nhật timeline tính từ 30 ngày trước đến ngày hiện tại (2026)
     end_date = datetime.date.today()
     start_date = end_date - datetime.timedelta(days=30)
     dates = pd.date_range(start=start_date, end=end_date)
@@ -134,7 +129,7 @@ with col_right:
 
 st.markdown("---")
 
-# --- HÀNG 3: BẢNG DỮ LIỆU CHUYÊN NGHIỆP (DARK MODE) ---
+# --- HÀNG 3: BẢNG DỮ LIỆU CHUYÊN NGHIỆP ---
 st.markdown("### 🏆 Bảng Xếp Hạng Top Cổ Phiếu Dẫn Dắt & Thuyết Minh Dòng Tiền")
 
 df_top = pd.DataFrame({
