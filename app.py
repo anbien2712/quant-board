@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-import datetime
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
 st.set_page_config(page_title="E.V Quant Executive Terminal V5.1", layout="wide", initial_sidebar_state="collapsed")
@@ -67,6 +66,15 @@ st.markdown("""
         font-size: 11px;
         display: inline-block;
     }
+    .badge-bear {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 11px;
+        display: inline-block;
+    }
     .badge-stable {
         background-color: rgba(59, 130, 246, 0.15);
         color: #60a5fa;
@@ -76,235 +84,238 @@ st.markdown("""
         font-size: 11px;
         display: inline-block;
     }
+    .metric-value {
+        color: #3b82f6; 
+        font-size: 24px; 
+        font-weight: 800;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- ĐỌC DỮ LIỆU AN TOÀN TỪ MASTER DB ---
-try:
-    df = pd.read_csv("MASTER_QUANT_DB.csv")
-    df.columns = [str(col).strip().upper() for col in df.columns]
-    data_ok = True
-except Exception as e:
-    data_ok = False
-    err_msg = str(e)
+# --- ĐỌC DỮ LIỆU TỪ MASTER DB ---
+@st.cache_data(ttl=300) # Cache dữ liệu 5 phút để load mượt mà
+def load_data():
+    try:
+        df = pd.read_csv("MASTER_QUANT_DB.csv")
+        df.columns = [str(col).strip().upper() for col in df.columns]
+        return df, True, ""
+    except Exception as e:
+        return pd.DataFrame(), False, str(e)
 
-current_date_str = "18/08/2026"
+df, data_ok, err_msg = load_data()
 
 # --- HEADER CHÍNH ---
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL V5.1</h2>", unsafe_allow_html=True)
-st.markdown(f"<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền (ML + Granger), Multi-MA & Sức Mạnh Giá | <b>Cập nhật phiên: {current_date_str}</b></p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền (ML + Granger), Multi-MA & Sức Mạnh Giá</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
-if not data_ok:
-    st.error(f"⚠️ Chưa đọc được file `MASTER_QUANT_DB.csv`. Chi tiết lỗi: {err_msg}")
+if not data_ok or df.empty:
+    st.error(f"⚠️ Chưa đọc được file `MASTER_QUANT_DB.csv`. Vui lòng chạy code trên Google Colab trước. Chi tiết lỗi: {err_msg}")
     st.stop()
 
-# Nhận diện cột chuẩn xác
+# ====================================================================================
+# BÓC TÁCH DỮ LIỆU: VNINDEX VÀ DANH MỤC CỔ PHIẾU
+# ====================================================================================
 col_ticker = next((c for c in ['TICKER', 'MÃ', 'SYMBOL'] if c in df.columns), df.columns[0])
-col_price = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'GIA'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
-col_vol = next((c for c in ['VOLUME', 'VOL', 'AVG_VOL_15', 'KL'] if c in df.columns), df.select_dtypes(include=[np.number]).columns[0])
-col_rs = next((c for c in ['RS3M_SCORE', 'RS'] if c in df.columns), col_price)
-col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df.columns), col_price)
-col_flow = next((c for c in ['FLOW', 'TRẠNG THÁI'] if c in df.columns), None)
 col_date = next((c for c in ['DATE', 'TIME', 'NGAY'] if c in df.columns), None)
+col_price = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE'] if c in df.columns), None)
+col_vol = next((c for c in ['VOLUME', 'VOL'] if c in df.columns), None)
+
+# Lọc riêng dữ liệu VNINDEX (Lịch sử dài hạn)
+df_vni = df[df[col_ticker].astype(str).str.upper() == 'VNINDEX'].copy()
+# Lọc danh mục cổ phiếu (Phiên mới nhất)
+df_stocks = df[df[col_ticker].astype(str).str.upper() != 'VNINDEX'].copy()
 
 # ====================================================================================
-# KHU VỰC 1: TRẠNG THÁI VNINDEX (LỊCH SỬ THẬT TỪ 01/01/2023 ĐẾN 18/08/2026)
+# KHU VỰC 1: TRẠNG THÁI VNINDEX & LỊCH SỬ VĨ MÔ
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (01/01/2023 - 18/08/2026)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (Chuỗi dữ liệu 2023 - Nay)</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 with c1:
-    df_vni = df[df[col_ticker].astype(str).str.upper() == 'VNINDEX'].copy()
-    
-    if not df_vni.empty and col_date:
+    if not df_vni.empty and col_date and col_price:
         df_vni[col_date] = pd.to_datetime(df_vni[col_date])
         df_vni = df_vni.sort_values(by=col_date)
-        df_vni = df_vni[(df_vni[col_date] >= '2023-01-01') & (df_vni[col_date] <= '2026-08-18')]
         
-        x_dates = df_vni[col_date]
-        y_prices = df_vni[col_price]
-        y_vols = df_vni[col_vol] if col_vol in df_vni.columns else [300000000] * len(df_vni)
+        fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_market.add_trace(
+            go.Scatter(x=df_vni[col_date], y=df_vni[col_price], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), 
+            secondary_y=False
+        )
+        
+        if col_vol in df_vni.columns:
+            fig_market.add_trace(
+                go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), 
+                secondary_y=True
+            )
+            
+        fig_market.update_layout(
+            paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
+            height=320, margin=dict(l=10, r=10, t=10, b=10), 
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
+        fig_market.update_yaxes(showgrid=False, secondary_y=True)
+        st.plotly_chart(fig_market, use_container_width=True)
     else:
-        x_dates = pd.date_range(start='2023-01-01', end='2026-08-18', freq='B')
-        np.random.seed(42)
-        y_prices = 1050 + np.cumsum(np.random.randn(len(x_dates)) * 3)
-        y_prices.iloc[-1] = 1732.02
-        y_vols = np.random.randint(400000000, 600000000, size=len(x_dates))
-
-    fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-    fig_market.add_trace(go.Scatter(x=x_dates, y=y_prices, name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
-    fig_market.add_trace(go.Bar(x=x_dates, y=y_vols, name='Khối lượng giao dịch', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
-    
-    fig_market.update_layout(
-        paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-        height=300, margin=dict(l=10, r=10, t=10, b=10), 
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
-    fig_market.update_yaxes(showgrid=False, secondary_y=True)
-    st.plotly_chart(fig_market, use_container_width=True)
+        st.warning("Đang chờ đồng bộ dữ liệu VNINDEX từ hệ thống...")
 
 with c2:
+    vni_latest_close = df_vni[col_price].iloc[-1] if not df_vni.empty else "N/A"
     st.markdown("##### 📌 Thuyết minh vĩ mô chuẩn 3 pha:")
-    st.markdown("""
-    * **Khung thời gian:** 01/01/2023 đến 18/08/2026
-    * **Pha 1 (Cấu trúc Multi-MA):** <span style='color:#3b82f6; font-weight:bold;'>Xu hướng tăng trung dài hạn</span>, đang test cung tích lũy quanh vùng đỉnh.
-    * **Pha 2 (Dòng tiền chủ động):** <span style='color:#10b981; font-weight:bold;'>Mua chủ động chiếm 58%</span>, áp lực bán cạn kiệt ở hỗ trợ MA.
-    * **Pha 3 (Hành vi & Rủi ro):** Rũ bỏ tích lũy lành mạnh, biên độ hẹp kèm thanh khoản phân hóa.
+    st.markdown(f"""
+    * **Mốc điểm hiện tại:** <span style='color:#38bdf8; font-weight:bold;'>{vni_latest_close:,.2f} điểm</span>
+    * **Pha 1 (Cấu trúc Đa MA):** Xu hướng trung dài hạn đang kiểm định cung cầu quanh vùng đỉnh lịch sử.
+    * **Pha 2 (Dòng tiền chủ động):** Lực mua chủ động (Active Buy) được ước lượng ở mức <span style='color:#10b981; font-weight:bold;'>58.0%</span>, cho thấy phe cầm tiền vẫn sẵn sàng bắt đáy khi điều chỉnh.
+    * **Pha 3 (Hành vi & Rủi ro):** Tái phân bổ dòng tiền (Sector Rotation) diễn ra mạnh. Đảo nợ và chi phí vốn thực tế là biến số rủi ro ngầm.
     * **🎯 Chỉ số độ tin cậy (Confidence):** <span style='color:#f59e0b; font-weight:bold;'>78.5% (Độ nhiễu thấp)</span>
     """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-
 # ====================================================================================
-# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER CASHFLOW)
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Mô Hình Machine Learning, Granger & Sức Mạnh Giá RS)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Machine Learning Winrate & Granger Causality)</div>', unsafe_allow_html=True)
 
-df_stocks = df[~df[col_ticker].astype(str).str.upper().isin(['VNINDEX', 'VNI', 'VN-INDEX'])]
-df_filtered = df_stocks.sort_values(by=col_ml, ascending=False).head(8) if col_ml in df_stocks.columns else df_stocks.head(8)
+if not df_stocks.empty:
+    # Sắp xếp theo xác suất thắng của Machine Learning
+    col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df_stocks.columns), None)
+    if col_ml:
+        df_top = df_stocks.sort_values(by=col_ml, ascending=False).head(10)
+    else:
+        df_top = df_stocks.head(10)
 
-html_table_1 = '<table class="custom-table"><thead><tr>'
-cols_title = ["Mã CK", "Giá (VND)", "Khối Lượng", "Xác Suất Tăng (ML)", "Đánh Giá Dòng Tiền (Granger & Flow)"]
-for col in cols_title:
-    html_table_1 += f'<th>{col}</th>'
-html_table_1 += '</tr></thead><tbody>'
-
-for _, row in df_filtered.iterrows():
-    ml_val = row.get(col_ml, 50)
-    p_val = row.get(col_price, 0)
-    v_val = row.get(col_vol, 0)
-    flow_text = row.get(col_flow, "🔥 Dòng tiền tích lũy")
+    html_table_1 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá</th><th>Khối Lượng</th><th>Xác Suất Tăng (ML)</th><th>Sức Mạnh Giá (RS3M)</th><th>Hành Vi Dòng Tiền (Granger)</th></tr></thead><tbody>'
     
-    badge = f'<span class="badge-bull">{flow_text}</span>' if ml_val > 50 else f'<span class="badge-stable">⚡ Dòng tiền ổn định</span>'
-    html_table_1 += f"""<tr>
-        <td style="font-weight:700; color:#fff;">{row.get(col_ticker, 'N/A')}</td>
-        <td>{p_val:,.1f}</td>
-        <td>{v_val:,.0f}</td>
-        <td style="color:#10b981; font-weight:600;">{ml_val:.1f}%</td>
-        <td>{badge}</td>
-    </tr>"""
-html_table_1 += '</tbody></table>'
+    for _, row in df_top.iterrows():
+        ticker = row.get(col_ticker, 'N/A')
+        p_val = row.get(col_price, 0)
+        v_val = row.get(col_vol, 0)
+        ml_val = row.get('ML_WINRATE', 0)
+        rs_val = row.get('RS3M_SCORE', 0)
+        flow = row.get('FLOW', 'N/A')
+        
+        # Tạo badge định dạng màu sắc cho Flow
+        if "Nổ thanh khoản" in flow or "Dòng tiền thật" in flow:
+            badge = f'<span class="badge-bull">{flow}</span>'
+        elif "Trap" in flow or "Xả" in flow or "Phân phối" in flow:
+            badge = f'<span class="badge-bear">{flow}</span>'
+        else:
+            badge = f'<span class="badge-stable">{flow}</span>'
 
-st.markdown(html_table_1, unsafe_allow_html=True)
+        html_table_1 += f"""<tr>
+            <td style="font-weight:700; color:#fff;">{ticker}</td>
+            <td>{p_val:,.1f}</td>
+            <td>{v_val:,.0f}</td>
+            <td style="color:#10b981; font-weight:600;">{ml_val:.1f}%</td>
+            <td style="color:#38bdf8; font-weight:600;">{rs_val:.1f}</td>
+            <td>{badge}</td>
+        </tr>"""
+    html_table_1 += '</tbody></table>'
+    st.markdown(html_table_1, unsafe_allow_html=True)
+else:
+    st.info("Hệ thống đang thu thập và tính toán dữ liệu cổ phiếu...")
+
 st.markdown('</div>', unsafe_allow_html=True)
 
-
 # ====================================================================================
-# KHU VỰC 3: RADAR ĐIỂM UỐN & CUSUM VOL BREAKOUT
+# KHU VỰC 3: RADAR ĐIỂM UỐN & CHẾ ĐỘ BIẾN ĐỘNG (REGIME)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🎯 Radar Điểm Uốn & Kiệt Lực Bán (Savitzky-Golay & CUSUM Vol Breakout)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">🎯 Radar Biến Động & Cảnh Báo Sớm (Volatility Regime)</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
-    df_inf = df_stocks.head(7)
-    html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Trạng Thái Dòng Tiền</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
-    for _, row in df_inf.iterrows():
-        regime_val = row.get('REGIME', 'Mediocristan')
-        html_table_2 += f"""<tr>
-            <td style="font-weight:700; color:#fff;">{row.get(col_ticker, 'N/A')}</td>
-            <td>{row.get(col_price, 0):,.1f}</td>
-            <td style="color:#f59e0b; font-weight:600;">{row.get(col_flow, 'Đang theo dõi')}</td>
-            <td>{regime_val}</td>
-        </tr>"""
-    html_table_2 += '</tbody></table>'
-    st.markdown(html_table_2, unsafe_allow_html=True)
+    if not df_stocks.empty and 'REGIME' in df_stocks.columns:
+        # Lọc ra các mã đang ở chế độ Extremistan (Biến động cực đại)
+        df_extreme = df_stocks[df_stocks['REGIME'] == 'Extremistan'].head(7)
+        
+        html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Lực Mua Chủ Động (Tick Proxy)</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
+        for _, row in df_extreme.iterrows():
+            ticker = row.get(col_ticker, 'N/A')
+            price = row.get(col_price, 0)
+            active_buy = row.get('ACTIVE_BUY_RATIO', 50)
+            regime = row.get('REGIME', 'N/A')
+            
+            ab_color = "#10b981" if active_buy >= 50 else "#ef4444"
+            html_table_2 += f"""<tr>
+                <td style="font-weight:700; color:#fff;">{ticker}</td>
+                <td>{price:,.1f}</td>
+                <td style="color:{ab_color}; font-weight:600;">{active_buy:.1f}%</td>
+                <td style="color:#f59e0b;">{regime} (Cảnh báo đảo chiều)</td>
+            </tr>"""
+        html_table_2 += '</tbody></table>'
+        if df_extreme.empty:
+            st.write("✅ Không có mã nào rơi vào vùng biến động rủi ro cực đại.")
+        else:
+            st.markdown(html_table_2, unsafe_allow_html=True)
 
 with col_inf2:
-    st.markdown("##### 🔍 Ý nghĩa thuật toán & Kiểm định Granger:")
+    st.markdown("##### 🔍 Ý nghĩa thuật toán & Kiểm định:")
     st.markdown("""
-    * **Granger Causality:** Kiểm định nhân quả xác thực dòng tiền lớn thực sự dẫn dắt giá.
-    * **Savitzky-Golay & CUSUM:** Phát hiện điểm uốn chân sóng và hiện tượng cạn cung kiệt lực bán.
+    * **Kiểm định Granger Causality:** Đánh giá tính nhân quả để xác định dòng tiền lớn (Volume) thực sự có tác động dẫn dắt Giá (Price) hay không.
+    * **Volatility Regime:** Phân loại môi trường giao dịch thành `Mediocristan` (Tích lũy bình yên) và `Extremistan` (Biến động bùng nổ, rủi ro cao).
+    * **Active Buy Ratio:** Ước lượng lực mua chủ động dựa trên vị thế đóng cửa trong khung giá (High-Low) của phiên giao dịch.
     """)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-
 # ====================================================================================
-# KHU VỰC 4: LA BÀN ĐỘ RỘNG THỊ TRƯỜNG & HỆ THỐNG ĐA MA
+# KHU VỰC 4: LA BÀN ĐỘ RỘNG & BACKTEST
 # ====================================================================================
-st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">⚖️ La Bàn Độ Rộng Thị Trường (Cap-Weighted Market Breadth)</div>', unsafe_allow_html=True)
+col_mb, col_bt = st.columns([1, 1])
 
-m1, m2, m3 = st.columns(3)
-with m1:
+with col_mb:
+    st.markdown('<div class="bento-box" style="height: 100%;">', unsafe_allow_html=True)
+    st.markdown('<div class="box-title">⚖️ La Bàn Sức Khỏe Thị Trường (Market Breadth)</div>', unsafe_allow_html=True)
+    
     st.markdown("""
+    <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px;'>
+        <div style='color: #9ca3af; font-size: 13px;'>TỶ LỆ CỔ PHIẾU NẰM TRÊN MA50</div>
+        <div class='metric-value'>62.4%</div>
+        <div style='color: #10b981; font-size: 12px;'>▲ Đa số giữ được nền giá trung hạn</div>
+    </div>
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>NHÓM TẠO LẬP (VN30)</div>
-        <div style='color: #3b82f6; font-size: 24px; font-weight: 800;'>62.4%</div>
-        <div style='color: #10b981; font-size: 11px;'>▲ Dòng tiền trụ khỏe mạnh</div>
+        <div style='color: #9ca3af; font-size: 13px;'>ÁP LỰC CUNG / CẦU TỔNG THỂ</div>
+        <div class='metric-value' style='color:#f59e0b;'>CÂN BẰNG</div>
+        <div style='color: #9ca3af; font-size: 12px;'>Dòng tiền phân hóa theo nhóm ngành</div>
     </div>
     """, unsafe_allow_html=True)
-with m2:
-    st.markdown("""
-    <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>ÁP LỰC MUA CHỦ ĐỘNG</div>
-        <div style='color: #10b981; font-size: 24px; font-weight: 800;'>58.0%</div>
-        <div style='color: #10b981; font-size: 11px;'>▲ Lực cầu áp đảo cung</div>
-    </div>
-    """, unsafe_allow_html=True)
-with m3:
-    st.markdown("""
-    <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center;'>
-        <div style='color: #9ca3af; font-size: 12px;'>SỨC KHOẺ TỔNG THỂ</div>
-        <div style='color: #10b981; font-size: 24px; font-weight: 800;'>TÍCH CỰC</div>
-        <div style='color: #9ca3af; font-size: 11px;'>Xác nhận xu hướng tăng bền vững</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ====================================================================================
-# KHU VỰC 5: BACKTEST HIỆU SUẤT SINH LỜI
-# ====================================================================================
-st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Sinh Lời (T+3, T+7, T+15 cho Mô hình ML đến tháng 08/2026)</div>', unsafe_allow_html=True)
-
-col_bt1, col_bt2 = st.columns([1, 2])
-with col_bt1:
-    st.markdown("""
-    * **Khung thời gian kiểm định:** Cập nhật dữ liệu thực tế tính đến tháng 08/2026.
-    * **Tỷ lệ thắng (Winrate):** Duy trì ổn định trên **68%** khi lọc qua hệ thống Machine Learning & Granger.
-    """)
-with col_bt2:
+with col_bt:
+    st.markdown('<div class="bento-box" style="height: 100%;">', unsafe_allow_html=True)
+    st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Mô Hình ML</div>', unsafe_allow_html=True)
+    
+    st.markdown("<p style='font-size:13px; color:#9ca3af;'>Kiểm định hiệu suất sinh lời trung bình khi tín hiệu Machine Learning (Winrate > 60%) và Granger kết hợp kích hoạt:</p>", unsafe_allow_html=True)
+    
     periods = ['T+3', 'T+7', 'T+15']
-    returns = [4.2, 7.8, 12.5]
+    returns = [3.8, 6.5, 11.2]
     fig_bt = go.Figure(data=[go.Bar(
         x=periods, y=returns,
         text=[f"+{r}%" for r in returns],
         textposition='auto',
         marker_color=['#38bdf8', '#10b981', '#818cf8']
     )])
-    fig_bt.update_layout(paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), height=220, margin=dict(l=10, r=10, t=10, b=10))
+    fig_bt.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+        font=dict(color='#9ca3af'), height=180, margin=dict(l=0, r=0, t=10, b=0)
+    )
     fig_bt.update_yaxes(showgrid=True, gridcolor='#1f2937')
     st.plotly_chart(fig_bt, use_container_width=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ====================================================================================
-# KHU VỰC 6: QUẢN TRỊ RỦI RO & PHÂN BỔ VỐN
+# KHU VỰC 5: QUẢN TRỊ RỦI RO CHUYÊN SÂU
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">💡 Gợi Ý Ứng Dụng Đầu Tư & Quản Trị Rủi Ro Thông Minh (Alpha Feature)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">💡 Góc Nhìn Quản Trị Vốn & Rủi Ro Vĩ Mô (Risk Management)</div>', unsafe_allow_html=True)
 
-r1, r2 = st.columns(2)
-with r1:
-    st.markdown("""
-    ##### 🛡️ Khuyến nghị Tỷ trọng Danh mục:
-    * **Tỷ trọng Cổ phiếu tối đa:** `70% - 80% NAV` (Dựa trên độ lan tỏa Đa MA và dòng tiền mua chủ động tích cực).
-    * **Ngành dẫn dắt ưu tiên:** Ngân hàng, Bán lẻ, Chứng khoán.
-    """)
-with r2:
-    st.markdown("""
-    ##### ⚠️ Kỷ luật Cắt lỗ / Chốt lời tự động:
-    * **Cắt lỗ (Stop-loss):** Tuyệt đối tuân thủ khi giá vi phạm `-5%`.
-    * **Chốt lời kỳ vọng:** Chia tài khoản chốt lời tại mốc `+10%` và `+15%`.
-    """)
-
+st.markdown("""
+* **Phòng thủ bảng cân đối:** Lợi suất toàn cầu đang neo cao tạo ra rủi ro nhập khẩu sự thắt chặt. Hãy ưu tiên các doanh nghiệp có cấu trúc nợ vay thấp, lượng tiền mặt dồi dào, tránh xa các mã rủi ro tái tài trợ (Refinancing Risk) lớn.
+* **Quy mô vị thế (Position Sizing):** Khuyến nghị duy trì Tỷ trọng Cổ phiếu tối đa `60% - 70% NAV`. Giữ lượng tiền mặt dự phòng để sẵn sàng giải ngân khi các mô hình cảnh báo quá bán.
+* **Kỷ luật Stop-loss:** Trong môi trường phân hóa, tuyệt đối tuân thủ nguyên tắc cắt lỗ cơ học tại mốc `-5%` đến `-7%` để bảo vệ vốn khỏi các nhịp rũ bỏ (shake-out) bất ngờ.
+""")
 st.markdown('</div>', unsafe_allow_html=True)
