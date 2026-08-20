@@ -474,7 +474,7 @@ col_mb, col_bt = st.columns([1, 1])
 
 with col_mb:
     st.markdown('<div class="bento-box" style="height: 100%;">', unsafe_allow_html=True)
-    st.markdown('<div class="box-title">MARKET BREADTH)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="box-title">MARKET BREADTH</div>', unsafe_allow_html=True)
     
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px;'>
@@ -492,7 +492,7 @@ with col_mb:
 
 with col_bt:
     st.markdown('<div class="bento-box" style="height: 100%;">', unsafe_allow_html=True)
-    st.markdown('<div class="box-title">🧪 Backtest Hiệu Suất Mô Hình ML</div>', unsafe_allow_html=True)
+    st.markdown('<div class="box-title">BACKTEST MODEL</div>', unsafe_allow_html=True)
     
     st.markdown("<p style='font-size:13px; color:#9ca3af;'>Kiểm định hiệu suất sinh lời trung bình khi tín hiệu Machine Learning (Winrate > 60%) và Granger kết hợp kích hoạt:</p>", unsafe_allow_html=True)
     
@@ -516,7 +516,7 @@ with col_bt:
 # KHU VỰC 5: QUẢN TRỊ RỦI RO CHUYÊN SÂU
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">RISK MANAGEMENT)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">RISK MANAGEMENT</div>', unsafe_allow_html=True)
 
 st.markdown("""
 * **Phòng thủ bảng cân đối:** Lợi suất toàn cầu đang neo cao tạo ra rủi ro nhập khẩu sự thắt chặt. Hãy ưu tiên các doanh nghiệp có cấu trúc nợ vay thấp, lượng tiền mặt dồi dào, tránh xa các mã rủi ro tái tài trợ (Refinancing Risk) lớn.
