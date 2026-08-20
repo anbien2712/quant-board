@@ -295,7 +295,6 @@ with c2:
     regime_color = "#ef4444" if regime == "Extremistan" else "#10b981"
 
     # --- 3. DỮ LIỆU MACHINE LEARNING ---
-    # Thay các biến này bằng dữ liệu đọc từ mô hình của anh
     prob_xgb_bottom = 53.0 
     prob_xgb_top = 0.2     
     prob_log_up_t3 = 62.5  
@@ -324,7 +323,6 @@ with c2:
     </div>
     """, unsafe_allow_html=True)
 
-    # Bảng Machine Learning (Đã sửa lỗi f-string)
     st.markdown(f"""
     <div class='quant-section-title'>Machine Learning Probabilities</div>
     <table class='quant-table'>
@@ -341,7 +339,6 @@ with c2:
     </table>
     """, unsafe_allow_html=True)
 
-    # Bảng Statistics (Đã sửa lỗi f-string)
     st.markdown(f"""
     <div class='quant-section-title'>Return Distribution Metrics</div>
     <table class='quant-table'>
@@ -360,52 +357,27 @@ with c2:
     </table>
     """, unsafe_allow_html=True)
 
-    # --- 6. VẼ 2 BIỂU ĐỒ TRỰC QUAN ---
-    st.markdown("<div class='quant-section-title'>Quantitative Charts</div>", unsafe_allow_html=True)
+    # --- 6. VẼ DUY NHẤT BIỂU ĐỒ HISTOGRAM (KÉO GIÃN CHIỀU CAO) ---
+    st.markdown("<div class='quant-section-title'>Return Distribution Chart</div>", unsafe_allow_html=True)
     
-    fig_subplots = make_subplots(
-        rows=2, cols=1, 
-        shared_xaxes=False, 
-        vertical_spacing=0.18, # Nới rộng khoảng cách 2 chart
-        row_heights=[0.5, 0.5]
-    )
-
-    # Plot 1: Histogram
-    fig_subplots.add_trace(go.Histogram(
+    fig_hist = go.Figure()
+    
+    fig_hist.add_trace(go.Histogram(
         x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', 
         marker_line=dict(color='#38bdf8', width=1), name='Returns'
-    ), row=1, col=1)
-    fig_subplots.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444", row=1, col=1)
-
-    # Plot 2: Active Buy Timeline
-    col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
-    col_low = next((c for c in ['LOW', 'THAP'] if c in df_vni.columns), None)
+    ))
     
-    if col_high and col_low:
-        df_vni['Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
-        df_vni['Active_Buy_MA'] = df_vni['Active_Buy'].rolling(10).mean()
-        
-        df_plot = df_vni.tail(100) # Lấy 100 phiên để nến rộng rãi dễ nhìn
-        
-        fig_subplots.add_trace(go.Bar(
-            x=df_plot[col_date], y=df_plot['Active_Buy'], marker_color='rgba(16, 185, 129, 0.3)', name='Active Buy'
-        ), row=2, col=1)
-        fig_subplots.add_trace(go.Scatter(
-            x=df_plot[col_date], y=df_plot['Active_Buy_MA'], mode='lines', line=dict(color='#f59e0b', width=2), name='MA10'
-        ), row=2, col=1)
-        fig_subplots.add_hline(y=50, line_width=1, line_dash="dash", line_color="#6b7280", row=2, col=1)
-
-    # Tinh chỉnh lại layout chart cho sắc nét
-    fig_subplots.update_layout(
+    fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
+    
+    # Chiều cao (height) được đẩy lên 350px để vừa khít với đáy của biểu đồ Dòng tiền bên trái
+    fig_hist.update_layout(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), 
-        height=400, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1
+        height=350, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1
     )
-    fig_subplots.update_xaxes(showgrid=False, zeroline=False, row=1, col=1)
-    fig_subplots.update_xaxes(showgrid=False, zeroline=False, row=2, col=1)
-    fig_subplots.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, row=1, col=1)
-    fig_subplots.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, row=2, col=1)
+    fig_hist.update_xaxes(showgrid=False, zeroline=False)
+    fig_hist.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
     
-    st.plotly_chart(fig_subplots, use_container_width=True)
+    st.plotly_chart(fig_hist, use_container_width=True)
 # ====================================================================================
 # KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
 # ====================================================================================
