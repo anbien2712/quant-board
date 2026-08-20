@@ -241,7 +241,7 @@ with c2:
     else:
         vni_str, vni_latest_date = "N/A", "N/A"
 
-    # --- 2. TÍNH TOÁN THỐNG KÊ PHÂN PHỐI (DISTRIBUTION STATS) ---
+    # --- 2. TÍNH TOÁN THỐNG KÊ PHÂN PHỐI ---
     df_vni['Daily_Return'] = df_vni[col_price].pct_change() * 100
     returns_clean = df_vni['Daily_Return'].dropna()
     
@@ -254,65 +254,88 @@ with c2:
     regime = "Extremistan" if stat_kurt > 1.5 else "Mediocristan"
     regime_color = "#ef4444" if regime == "Extremistan" else "#10b981"
 
-    # --- 3. DỮ LIỆU MACHINE LEARNING (XGBOOST & LOGISTIC) ---
-    # Giả định đọc từ file hoặc biến hệ thống (Anh tự map biến thực tế vào đây)
-    prob_xgb_bottom = 53.0 # Thay bằng biến đọc từ file XGBoost của anh
-    prob_xgb_top = 0.2     # Thay bằng biến đọc từ file XGBoost của anh
-    prob_log_up_t3 = 62.5  # Thay bằng biến đọc từ file Logistic Regression của anh
-    prob_log_down_t3 = 37.5 # Thay bằng biến đọc từ file Logistic Regression của anh
+    # --- 3. DỮ LIỆU MACHINE LEARNING ---
+    # Thay các biến này bằng dữ liệu đọc từ mô hình của anh
+    prob_xgb_bottom = 53.0 
+    prob_xgb_top = 0.2     
+    prob_log_up_t3 = 62.5  
+    prob_log_down_t3 = 37.5 
 
-    # --- 4. HIỂN THỊ UI (CHUYÊN NGHIỆP, KHÔNG ICON, BẢNG BIỂU RÕ RÀNG) ---
-    st.markdown(f"<div style='font-size: 15px; font-weight: 700; color: #f3f4f6; margin-bottom: 10px; text-transform: uppercase;'>MARKET OVERVIEW - {vni_latest_date}</div>", unsafe_allow_html=True)
-    
+    # --- 4. CSS TÙY CHỈNH CHUẨN QUANT TERMINAL ---
+    st.markdown("""
+    <style>
+        .quant-header { color: #f3f4f6; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+        .quant-price-box { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #2d3748; padding-bottom: 8px; margin-bottom: 20px; }
+        .quant-section-title { color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-left: 3px solid #3b82f6; padding-left: 8px; }
+        .quant-table { width: 100%; border-collapse: collapse; font-family: 'Courier New', Courier, monospace; font-size: 13px; margin-bottom: 25px; }
+        .quant-table td { padding: 8px 4px; border-bottom: 1px solid #1f2937; color: #e5e7eb; text-align: right; }
+        .quant-table .lbl { text-align: left; color: #9ca3af; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; }
+        .txt-bull { color: #10b981; font-weight: 700; }
+        .txt-bear { color: #ef4444; font-weight: 700; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- 5. HIỂN THỊ UI ---
+    st.markdown(f"<div class='quant-header'>MARKET OVERVIEW - {vni_latest_date}</div>", unsafe_allow_html=True)
     st.markdown(f"""
-    <div style='display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #1f2937; padding-bottom: 10px; margin-bottom: 15px;'>
-        <span style='color: #9ca3af; font-size: 13px;'>CURRENT INDEX (VNINDEX)</span>
-        <span style='color: #38bdf8; font-size: 22px; font-weight: 800;'>{vni_str}</span>
+    <div class='quant-price-box'>
+        <span style='color: #9ca3af; font-size: 12px;'>CURRENT INDEX (VNINDEX)</span>
+        <span style='color: #38bdf8; font-size: 24px; font-weight: 800; font-family: "Courier New", monospace;'>{vni_str}</span>
     </div>
     """, unsafe_allow_html=True)
 
-    # Bảng Matrix Machine Learning
-    st.markdown("""
-    <style>
-        .ml-table {width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 12px;}
-        .ml-table th {background-color: #1a2230; color: #9ca3af; text-align: left; padding: 6px; border: 1px solid #2d3748; font-weight: normal;}
-        .ml-table td {background-color: #151a23; color: #d1d5db; text-align: right; padding: 6px; border: 1px solid #2d3748; font-weight: bold;}
-    </style>
-    <div style='color: #9ca3af; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;'>Machine Learning Probabilities</div>
-    <table class='ml-table'>
-        <tr>
-            <th>XGBoost (Inflection)</th>
-            <td style='color: #10b981;'>P(Bottom): {prob_xgb_bottom:.1f}%</td>
-            <td style='color: #ef4444;'>P(Top): {prob_xgb_top:.1f}%</td>
-        </tr>
-        <tr>
-            <th>Logistic Reg (T+3)</th>
-            <td style='color: #10b981;'>P(Up): {prob_log_up_t3:.1f}%</td>
-            <td style='color: #ef4444;'>P(Down): {prob_log_down_t3:.1f}%</td>
-        </tr>
-    </table>
-    """, unsafe_allow_html=True)
-
-    # Bảng Statistics
+    # Bảng Machine Learning (Đã sửa lỗi f-string)
     st.markdown(f"""
-    <div style='color: #9ca3af; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;'>Return Distribution Metrics</div>
-    <table class='ml-table' style='margin-bottom: 5px;'>
-        <tr><th>Mean</th><td>{stat_mean:.2f}%</td><th>Max</th><td style='color: #10b981;'>{stat_max:.2f}%</td></tr>
-        <tr><th>Median</th><td>{stat_median:.2f}%</td><th>Min</th><td style='color: #ef4444;'>{stat_min:.2f}%</td></tr>
-        <tr><th>Kurtosis</th><td>{stat_kurt:.2f}</td><th>Regime</th><td style='color: {regime_color};'>{regime}</td></tr>
+    <div class='quant-section-title'>Machine Learning Probabilities</div>
+    <table class='quant-table'>
+        <tr>
+            <td class='lbl'>XGBoost (Inflection)</td>
+            <td>P(Bottom): <span class='txt-bull'>{prob_xgb_bottom:.1f}%</span></td>
+            <td>P(Top): <span class='txt-bear'>{prob_xgb_top:.1f}%</span></td>
+        </tr>
+        <tr>
+            <td class='lbl'>Logistic Reg (T+3)</td>
+            <td>P(Up): <span class='txt-bull'>{prob_log_up_t3:.1f}%</span></td>
+            <td>P(Down): <span class='txt-bear'>{prob_log_down_t3:.1f}%</span></td>
+        </tr>
     </table>
     """, unsafe_allow_html=True)
 
-    # --- 5. VẼ 2 BIỂU ĐỒ (HISTOGRAM & ACTIVE BUY TIMELINE) ---
-    fig_subplots = make_subplots(rows=2, cols=1, shared_xaxes=False, vertical_spacing=0.15,
-                                 row_heights=[0.5, 0.5], subplot_titles=("Return Distribution", "Active Buy Timeline (%)"))
+    # Bảng Statistics (Đã sửa lỗi f-string)
+    st.markdown(f"""
+    <div class='quant-section-title'>Return Distribution Metrics</div>
+    <table class='quant-table'>
+        <tr>
+            <td class='lbl'>Mean</td><td>{stat_mean:.2f}%</td>
+            <td class='lbl' style='padding-left:15px;'>Max</td><td class='txt-bull'>{stat_max:.2f}%</td>
+        </tr>
+        <tr>
+            <td class='lbl'>Median</td><td>{stat_median:.2f}%</td>
+            <td class='lbl' style='padding-left:15px;'>Min</td><td class='txt-bear'>{stat_min:.2f}%</td>
+        </tr>
+        <tr>
+            <td class='lbl'>Kurtosis</td><td>{stat_kurt:.2f}</td>
+            <td class='lbl' style='padding-left:15px;'>Regime</td><td style='color:{regime_color}; font-weight:700;'>{regime}</td>
+        </tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+    # --- 6. VẼ 2 BIỂU ĐỒ TRỰC QUAN ---
+    st.markdown("<div class='quant-section-title'>Quantitative Charts</div>", unsafe_allow_html=True)
+    
+    fig_subplots = make_subplots(
+        rows=2, cols=1, 
+        shared_xaxes=False, 
+        vertical_spacing=0.18, # Nới rộng khoảng cách 2 chart
+        row_heights=[0.5, 0.5]
+    )
 
     # Plot 1: Histogram
     fig_subplots.add_trace(go.Histogram(
         x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', 
         marker_line=dict(color='#38bdf8', width=1), name='Returns'
     ), row=1, col=1)
-    fig_subplots.add_vline(x=0, line_width=1, line_dash="dash", line_color="#ef4444", row=1, col=1)
+    fig_subplots.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444", row=1, col=1)
 
     # Plot 2: Active Buy Timeline
     col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
@@ -320,32 +343,28 @@ with c2:
     
     if col_high and col_low:
         df_vni['Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
-        # Tính MA10 của Active Buy để làm mượt
         df_vni['Active_Buy_MA'] = df_vni['Active_Buy'].rolling(10).mean()
         
-        # Cắt lấy 100 phiên gần nhất cho dễ nhìn
-        df_plot = df_vni.tail(100)
+        df_plot = df_vni.tail(100) # Lấy 100 phiên để nến rộng rãi dễ nhìn
         
         fig_subplots.add_trace(go.Bar(
-            x=df_plot[col_date], y=df_plot['Active_Buy'], marker_color='rgba(16, 185, 129, 0.4)', name='Active Buy'
+            x=df_plot[col_date], y=df_plot['Active_Buy'], marker_color='rgba(16, 185, 129, 0.3)', name='Active Buy'
         ), row=2, col=1)
         fig_subplots.add_trace(go.Scatter(
             x=df_plot[col_date], y=df_plot['Active_Buy_MA'], mode='lines', line=dict(color='#f59e0b', width=2), name='MA10'
         ), row=2, col=1)
-        # Đường tham chiếu 50%
-        fig_subplots.add_hline(y=50, line_width=1, line_dash="dash", line_color="#9ca3af", row=2, col=1)
+        fig_subplots.add_hline(y=50, line_width=1, line_dash="dash", line_color="#6b7280", row=2, col=1)
 
+    # Tinh chỉnh lại layout chart cho sắc nét
     fig_subplots.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=10), 
-        height=350, margin=dict(l=0, r=0, t=25, b=0), showlegend=False, bargap=0.1
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), 
+        height=400, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1
     )
-    fig_subplots.update_xaxes(showgrid=False, zeroline=False)
-    fig_subplots.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
+    fig_subplots.update_xaxes(showgrid=False, zeroline=False, row=1, col=1)
+    fig_subplots.update_xaxes(showgrid=False, zeroline=False, row=2, col=1)
+    fig_subplots.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, row=1, col=1)
+    fig_subplots.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, row=2, col=1)
     
-    # Ép font title nhỏ lại
-    for annotation in fig_subplots['layout']['annotations']:
-        annotation['font'] = dict(size=11, color="#d1d5db")
-
     st.plotly_chart(fig_subplots, use_container_width=True)
 # ====================================================================================
 # KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
