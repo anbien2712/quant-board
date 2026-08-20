@@ -106,8 +106,8 @@ def load_data():
 df, data_ok, err_msg = load_data()
 
 # --- HEADER CHÍNH ---
-st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>⚡ E.V QUANTITATIVE TRADING EXECUTIVE TERMINAL V5.1</h2>", unsafe_allow_html=True)
-st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Hệ thống giám sát vĩ mô, Định lượng dòng tiền (ML + Granger), Multi-MA & Sức Mạnh Giá</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>QUANTITATIVE CHECKING SYSTEM</h2>", unsafe_allow_html=True)
+st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Beta version</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok or df.empty:
     st.error(f"⚠️ Chưa đọc được file `MASTER_QUANT_DB.csv`. Vui lòng chạy code trên Google Colab trước. Chi tiết lỗi: {err_msg}")
@@ -130,7 +130,7 @@ df_stocks = df[df[col_ticker].astype(str).str.upper() != 'VNINDEX'].copy()
 # KHU VỰC 1: TRẠNG THÁI VNINDEX & LỊCH SỬ VĨ MÔ
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (Chuỗi dữ liệu 2023 - Nay)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">Machine Learning</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 with c1:
@@ -169,7 +169,7 @@ with c1:
                 # Bảng màu Neon cho nền tối
                 color_map = {
                     'Đáy Mạnh (Climax)': '#00ff00', 'Đáy Cạn Cung': '#69f0ae', 'Đáy Yếu': '#b9f6ca',           
-                    'Đỉnh Phân Phối': '#ff1744', 'Đỉnh Rớn': '#ff8a80',         
+                    'Đỉnh Phân Phối': '#ff1744', 'Đỉnh Rướn': '#ff8a80',         
                 }
                 
                 # Tạo legend (chú thích)
@@ -196,7 +196,7 @@ with c1:
                         y_pos = price * 0.97 # Cắm mũi tên phía dưới đường giá
                     else:
                         if "BUYING CLIMAX" in signal or "PHÂN PHỐI" in signal: color, line_w = color_map['Đỉnh Phân Phối'], 2.5
-                        else: color, line_w = color_map['Đỉnh Rớn'], 1.5
+                        else: color, line_w = color_map['Đỉnh Rướn'], 1.5
                         y_pos = price * 1.03 # Cắm mũi tên phía trên đường giá
                         
                     hover_text = (f"<b>{row['Tín Hiệu']}</b><br>Xanh: {row['Tiền Xanh']}<br>Đỏ: {row['Tiền Đỏ']}<br>Vol: {row['Vol']}<br>Mua: {row['Mua']}")
@@ -231,7 +231,7 @@ with c1:
         st.plotly_chart(fig_market, use_container_width=True)
         # THÊM MỚI: BIỂU ĐỒ DÒNG TIỀN CHỦ ĐỘNG (NẰM DƯỚI CHART VNINDEX)
         # =================================================================
-        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>ACTIVE FLOW</div>", unsafe_allow_html=True)
         
         col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
         col_low = next((c for c in ['LOW', 'THAP'] if c in df_vni.columns), None)
