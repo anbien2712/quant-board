@@ -216,8 +216,15 @@ with c1:
             
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-            height=420, margin=dict(l=10, r=10, t=10, b=10), # Tăng height lên 420px để dễ nhìn mũi tên
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            height=420, margin=dict(l=10, r=10, t=10, b=10), 
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.02, 
+                xanchor="right", 
+                x=1,
+                font=dict(color="white") # <--- ÉP MÀU CHỮ TRẮNG Ở ĐÂY
+            )
         )
         fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
