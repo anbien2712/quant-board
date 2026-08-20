@@ -429,7 +429,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 3: RADAR ĐIỂM UỐN & CHẾ ĐỘ BIẾN ĐỘNG (REGIME)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">VOLATILITY REGIME)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">VOLATILITY REGIME</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
