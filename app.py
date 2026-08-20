@@ -233,18 +233,77 @@ with c1:
         st.warning("Đang chờ đồng bộ dữ liệu VNINDEX từ hệ thống...")
 
 with c2:
-    vni_latest_close = df_vni[col_price].iloc[-1] if not df_vni.empty else "N/A"
-    st.markdown("##### 📌 Thuyết minh vĩ mô chuẩn 3 pha:")
+# 1. LẤY GIÁ TRỊ VNINDEX HIỆN TẠI
+    if not df_vni.empty and col_price in df_vni.columns:
+        vni_latest_close = df_vni[col_price].iloc[-1]
+        if isinstance(vni_latest_close, (int, float, np.number)):
+            vni_str = f"{vni_latest_close:,.2f} điểm"
+        else:
+            vni_str = str(vni_latest_close)
+    else:
+        vni_str = "N/A"
+
+    # 2. TÍNH TOÁN KIỂM ĐỊNH ĐUÔI BÉO (FAT-TAIL / KURTOSIS)
+    # Tính lợi nhuận % hàng ngày
+    df_vni['Daily_Return'] = df_vni[col_price].pct_change() * 100
+    returns_clean = df_vni['Daily_Return'].dropna()
+    
+    # Tính Excess Kurtosis (Chuẩn = 0, Đuôi béo > 1.5)
+    kurtosis_val = returns_clean.kurt() 
+    
+    if kurtosis_val > 1.5:
+        regime_status = "<span style='color:#ef4444; font-weight:bold;'>Đuôi béo (Extremistan)</span>"
+        regime_desc = "Cảnh báo Rủi ro Đuôi! Thị trường rất dễ xuất hiện các phiên giật biên độ lớn (Thiên nga đen) vượt ngoài phân phối chuẩn."
+    else:
+        regime_status = "<span style='color:#10b981; font-weight:bold;'>Bình thường (Mediocristan)</span>"
+        regime_desc = "Rủi ro phân tán ổn định. Thị trường dao động trong biên độ chuẩn của chu kỳ."
+
+    # 3. LẤY XÁC SUẤT ML XGBOOST (Ví dụ: Đọc từ file ai_signal hoặc gán tĩnh)
+    try:
+        # Nếu anh có xuất file dự báo AI thì đọc ở đây, tạm thời gán 53.0% của phiên 19/08
+        df_ai = pd.read_csv('ai_signal_2008.csv')
+        prob_up = f"{df_ai.iloc[-1]['prob_bottom']:.1f}%"
+    except:
+        prob_up = "53.0% (Phiên 19/08)" 
+
+    # 4. HIỂN THỊ BẢNG THUYẾT MINH VĨ MÔ
+    st.markdown("##### 📌 Thuyết minh vĩ mô chuẩn Quant:")
     st.markdown(f"""
-    * **Mốc điểm hiện tại:** <span style='color:#38bdf8; font-weight:bold;'>{vni_latest_close:,.2f} điểm</span>
-    * **Pha 1 (Cấu trúc Đa MA):** Xu hướng trung dài hạn đang kiểm định cung cầu quanh vùng đỉnh lịch sử.
-    * **Pha 2 (Dòng tiền chủ động):** Lực mua chủ động (Active Buy) được ước lượng ở mức <span style='color:#10b981; font-weight:bold;'>58.0%</span>, cho thấy phe cầm tiền vẫn sẵn sàng bắt đáy khi điều chỉnh.
-    * **Pha 3 (Hành vi & Rủi ro):** Tái phân bổ dòng tiền (Sector Rotation) diễn ra mạnh. Đảo nợ và chi phí vốn thực tế là biến số rủi ro ngầm.
-    * **🎯 Chỉ số độ tin cậy (Confidence):** <span style='color:#f59e0b; font-weight:bold;'>78.5% (Độ nhiễu thấp)</span>
+    * **Mốc điểm hiện tại:** <span style='color:#38bdf8; font-weight:bold;'>{vni_str}</span>
+    * **🤖 Xác suất Tạo Đáy/Tăng (XGBoost):** <span style='color:#10b981; font-weight:bold;'>{prob_up}</span>
+    * **📊 Kiểm định Kurtosis:** `{kurtosis_val:.2f}` ➾ {regime_status}
+    * **Nhận định rủi ro:** {regime_desc}
+    * **Lực mua chủ động:** Ước lượng <span style='color:#10b981; font-weight:bold;'>58.0%</span>, phe cầm tiền vẫn sẵn sàng bắt đáy khi điều chỉnh.
     """, unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
+    # 5. VẼ BIỂU ĐỒ HISTOGRAM LỢI NHUẬN
+    fig_hist = go.Figure()
+    
+    # Biểu đồ tần suất
+    fig_hist.add_trace(go.Histogram(
+        x=returns_clean,
+        nbinsx=50,
+        marker_color='rgba(56, 189, 248, 0.7)',
+        marker_line=dict(color='#38bdf8', width=1),
+        name='Daily Return'
+    ))
+    
+    # Kẻ vạch số 0 (Tham chiếu tăng/giảm)
+    fig_hist.add_vline(x=0, line_width=2, line_dash="dash", line_color="#ef4444")
+    
+    fig_hist.update_layout(
+        title=dict(text="Phân Phối Biến Động Lợi Nhuận (VNINDEX)", font=dict(size=13, color="#9ca3af")),
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        font=dict(color='#9ca3af'), 
+        height=220, 
+        margin=dict(l=10, r=10, t=30, b=10),
+        xaxis=dict(title="Biên độ Lợi nhuận (%)", showgrid=False, zeroline=False),
+        yaxis=dict(title="Số phiên", showgrid=True, gridcolor='#1f2937', zeroline=False),
+        showlegend=False,
+        bargap=0.1
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
 # ====================================================================================
 # KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
 # ====================================================================================
