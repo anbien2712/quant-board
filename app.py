@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+import os # Đã thêm thư viện này để check file
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
 st.set_page_config(page_title="E.V Quant Executive Terminal V5.1", layout="wide", initial_sidebar_state="collapsed")
@@ -138,20 +139,84 @@ with c1:
         df_vni = df_vni.sort_values(by=col_date)
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # Đường giá cơ bản của anh
         fig_market.add_trace(
             go.Scatter(x=df_vni[col_date], y=df_vni[col_price], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), 
             secondary_y=False
         )
         
+        # Volume cơ bản của anh
         if col_vol in df_vni.columns:
             fig_market.add_trace(
                 go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), 
                 secondary_y=True
             )
             
+        # ----------------------------------------------------------------------------------
+        # PHẦN CODE NHÚNG (OVERLAY) ĐIỂM UỐN SAVITZKY-GOLAY VÀO CHART
+        # ----------------------------------------------------------------------------------
+        file_name = 'Savitzky_Golay_10_Years_Full (1).csv'
+        if not os.path.exists(file_name):
+            file_name = 'Savitzky_Golay_10_Years_Full.csv'
+            
+        if os.path.exists(file_name):
+            try:
+                df_inf = pd.read_csv(file_name)
+                df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
+                df_inf = df_inf[df_inf['Ngày'] >= df_vni[col_date].min()]
+                
+                # Bảng màu Neon cho nền tối
+                color_map = {
+                    'Đáy Mạnh (Climax)': '#00ff00', 'Đáy Cạn Cung': '#69f0ae', 'Đáy Yếu': '#b9f6ca',           
+                    'Đỉnh Phân Phối': '#ff1744', 'Đỉnh Rớn': '#ff8a80',         
+                }
+                
+                # Tạo legend (chú thích)
+                for label, color in color_map.items():
+                    fig_market.add_trace(
+                        go.Scatter(x=[None], y=[None], mode='lines', line=dict(color=color, width=2), name=label),
+                        secondary_y=False
+                    )
+                    
+                for _, row in df_inf.iterrows():
+                    date = row['Ngày']
+                    # Tìm mức giá của VNINDEX ngày hôm đó để cắm mũi tên
+                    match = df_vni[df_vni[col_date] == date]
+                    if match.empty: continue
+                    
+                    price = match[col_price].iloc[0]
+                    signal = str(row['Tín Hiệu']).upper()
+                    is_bottom = "ĐÁY" in str(row['Vùng']).upper()
+                    
+                    if is_bottom:
+                        if "SELLING CLIMAX" in signal or "BÙNG NỔ" in signal: color, line_w = color_map['Đáy Mạnh (Climax)'], 2.5
+                        elif "YẾU" in signal: color, line_w = color_map['Đáy Yếu'], 1.0
+                        else: color, line_w = color_map['Đáy Cạn Cung'], 1.5
+                        y_pos = price * 0.97 # Cắm mũi tên phía dưới đường giá
+                    else:
+                        if "BUYING CLIMAX" in signal or "PHÂN PHỐI" in signal: color, line_w = color_map['Đỉnh Phân Phối'], 2.5
+                        else: color, line_w = color_map['Đỉnh Rớn'], 1.5
+                        y_pos = price * 1.03 # Cắm mũi tên phía trên đường giá
+                        
+                    hover_text = (f"<b>{row['Tín Hiệu']}</b><br>Xanh: {row['Tiền Xanh']}<br>Đỏ: {row['Tiền Đỏ']}<br>Vol: {row['Vol']}<br>Mua: {row['Mua']}")
+                    
+                    # Vẽ kẻ sọc
+                    fig_market.add_vline(x=date, line_width=line_w, line_color=color, opacity=0.6)
+                    
+                    # Đóng dấu mũi tên
+                    fig_market.add_trace(go.Scatter(
+                        x=[date], y=[y_pos], mode='markers',
+                        marker=dict(symbol="triangle-up" if is_bottom else "triangle-down", size=10, color=color, line=dict(width=1, color='#151a23')),
+                        text=hover_text, hoverinfo="text", showlegend=False
+                    ), secondary_y=False)
+            except Exception as e:
+                pass # Bỏ qua lỗi vẽ để không làm sập web
+        # ----------------------------------------------------------------------------------
+            
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-            height=320, margin=dict(l=10, r=10, t=10, b=10), 
+            height=420, margin=dict(l=10, r=10, t=10, b=10), # Tăng height lên 420px để dễ nhìn mũi tên
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
