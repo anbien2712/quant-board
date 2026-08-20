@@ -130,7 +130,7 @@ df_stocks = df[df[col_ticker].astype(str).str.upper() != 'VNINDEX'].copy()
 # KHU VỰC 1: TRẠNG THÁI VNINDEX & LỊCH SỬ VĨ MÔ
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">Machine Learning</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">MACHINE LEARNING</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 with c1:
@@ -382,7 +382,7 @@ with c2:
 # KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🚀 Top Cổ Phiếu Dẫn Dắt (Machine Learning Winrate & Granger Causality)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">TOP PICK BY ML & GRANGER </div>', unsafe_allow_html=True)
 
 if not df_stocks.empty:
     # Sắp xếp theo xác suất thắng của Machine Learning
@@ -429,7 +429,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 3: RADAR ĐIỂM UỐN & CHẾ ĐỘ BIẾN ĐỘNG (REGIME)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">🎯 Radar Biến Động & Cảnh Báo Sớm (Volatility Regime)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">VOLATILITY REGIME)</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
@@ -474,7 +474,7 @@ col_mb, col_bt = st.columns([1, 1])
 
 with col_mb:
     st.markdown('<div class="bento-box" style="height: 100%;">', unsafe_allow_html=True)
-    st.markdown('<div class="box-title">⚖️ La Bàn Sức Khỏe Thị Trường (Market Breadth)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="box-title">MARKET BREADTH)</div>', unsafe_allow_html=True)
     
     st.markdown("""
     <div style='background: #111620; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px;'>
@@ -516,7 +516,7 @@ with col_bt:
 # KHU VỰC 5: QUẢN TRỊ RỦI RO CHUYÊN SÂU
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">💡 Góc Nhìn Quản Trị Vốn & Rủi Ro Vĩ Mô (Risk Management)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">RISK MANAGEMENT)</div>', unsafe_allow_html=True)
 
 st.markdown("""
 * **Phòng thủ bảng cân đối:** Lợi suất toàn cầu đang neo cao tạo ra rủi ro nhập khẩu sự thắt chặt. Hãy ưu tiên các doanh nghiệp có cấu trúc nợ vay thấp, lượng tiền mặt dồi dào, tránh xa các mã rủi ro tái tài trợ (Refinancing Risk) lớn.
