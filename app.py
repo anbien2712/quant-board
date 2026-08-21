@@ -64,7 +64,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- ĐỌC VÀ CHUẨN HÓA DỮ LIỆU AN TOÀN ---
+# --- ĐỌC VÀ CHUẨN HÓA DỮ LIỆU ---
 @st.cache_data(ttl=300)
 def load_data():
     try:
@@ -118,7 +118,7 @@ with c1:
         df_vni[col_date] = pd.to_datetime(df_vni[col_date], errors='coerce')
         df_vni = df_vni.sort_values(by=col_date).dropna(subset=[col_date])
         
-        # Lọc dữ liệu từ năm 2023 để biểu đồ giãn cách và đẹp mắt như cũ
+        # CHỈ LẤY DỮ LIỆU TỪ 2023 ĐỂ TRÁNH BỊ "MÃ VẠCH"
         df_vni_recent = df_vni[df_vni[col_date] >= '2023-01-01'].copy()
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
@@ -127,7 +127,7 @@ with c1:
         if col_vol in df_vni_recent.columns:
             fig_market.add_trace(go.Bar(x=df_vni_recent[col_date], y=df_vni_recent[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
             
-        # KHÔI PHỤC MARKER ĐỈNH/ĐÁY SIÊU ĐẸP
+        # VẼ VẠCH KẺ & MARKER (HÌNH TAM GIÁC) ĐẸP MẮT
         for fname in ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']:
             if os.path.exists(fname):
                 try:
@@ -138,7 +138,6 @@ with c1:
                     legend_added = set()
                     for _, row in df_inf.iterrows():
                         date = row['Ngày']
-                        # Tìm giá trị VNINDEX tại ngày đó để đặt Marker
                         matching_rows = df_vni_recent[df_vni_recent[col_date] == date]
                         if matching_rows.empty: continue
                         price = matching_rows[col_price].values[0]
@@ -147,20 +146,18 @@ with c1:
                         color = '#10b981' if is_bottom else '#ef4444'
                         symbol = 'triangle-up' if is_bottom else 'triangle-down'
                         
-                        # Làm sạch tên tín hiệu cho Legend
                         raw_signal = str(row['Tín Hiệu'])
                         clean_signal = raw_signal.replace('🔥', '').replace('🚀', '').replace('✅', '').replace('⚠️', '').replace('🎆', '').replace('🚨', '').strip()
-                        
                         show_leg = clean_signal not in legend_added
                         
-                        # 1. Vẽ đường thẳng đứng mảnh (không đứt nét)
-                        fig_market.add_vline(x=date, line_width=1, line_color=color, opacity=0.3)
+                        # Đường kẻ dọc trong suốt
+                        fig_market.add_vline(x=date, line_width=1.2, line_color=color, opacity=0.4)
                         
-                        # 2. Đặt Marker hình tam giác lên đường giá
+                        # Marker tam giác nằm đúng trên đường giá
                         fig_market.add_trace(go.Scatter(
                             x=[date], y=[price],
                             mode='markers',
-                            marker=dict(symbol=symbol, color=color, size=12),
+                            marker=dict(symbol=symbol, color=color, size=14),
                             name=clean_signal,
                             showlegend=show_leg,
                             legendgroup=clean_signal
@@ -196,7 +193,9 @@ with c1:
             
         df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
         df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
-        df_flow_data = df_vni.tail(150) # Giữ 150 phiên cho biểu đồ ngắn hạn
+        
+        # ZOOM CẬN CẢNH 120 PHIÊN GẦN NHẤT
+        df_flow_data = df_vni.tail(120) 
         
         fig_flow = go.Figure()
         fig_flow.add_trace(go.Bar(x=df_flow_data[col_date], y=df_flow_data['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
@@ -248,7 +247,7 @@ with c2:
     </div>
     """, unsafe_allow_html=True)
 
-    # KHÔI PHỤC GIAO DIỆN BẢNG PROBABILITIES CŨ KẾT HỢP DỮ LIỆU TẦNG 1 MỚI
+    # KHUNG MACHINE LEARNING PROBABILITIES NHƯ ẢNH GỐC
     st.markdown(f"""
     <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Machine Learning Probabilities</div>
     <table style='width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 20px; color: #d1d5db; border-collapse: collapse;'>
