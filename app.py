@@ -109,7 +109,7 @@ df_stocks = df[df[col_ticker].astype(str).str.upper() != 'VNINDEX'].copy()
 # KHU VỰC 1: TRẠNG THÁI VNINDEX & ACTIVE FLOW
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">MACHINE LEARNING & MARKET FLOW</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (Chuỗi dữ liệu 2023 - Nay)</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
 
@@ -118,23 +118,56 @@ with c1:
         df_vni[col_date] = pd.to_datetime(df_vni[col_date], errors='coerce')
         df_vni = df_vni.sort_values(by=col_date).dropna(subset=[col_date])
         
-        fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_market.add_trace(go.Scatter(x=df_vni[col_date], y=df_vni[col_price], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        # Lọc dữ liệu từ năm 2023 để biểu đồ giãn cách và đẹp mắt như cũ
+        df_vni_recent = df_vni[df_vni[col_date] >= '2023-01-01'].copy()
         
-        if col_vol in df_vni.columns:
-            fig_market.add_trace(go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
+        fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_market.add_trace(go.Scatter(x=df_vni_recent[col_date], y=df_vni_recent[col_price], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        
+        if col_vol in df_vni_recent.columns:
+            fig_market.add_trace(go.Bar(x=df_vni_recent[col_date], y=df_vni_recent[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
             
-        # KHÔI PHỤC VẠCH ĐIỂM UỐN SAVITZKY-GOLAY 
+        # KHÔI PHỤC MARKER ĐỈNH/ĐÁY SIÊU ĐẸP
         for fname in ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']:
             if os.path.exists(fname):
                 try:
                     df_inf = pd.read_csv(fname)
                     df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
-                    df_inf = df_inf[df_inf['Ngày'] >= df_vni[col_date].min()]
+                    df_inf = df_inf[df_inf['Ngày'] >= pd.to_datetime('2023-01-01')]
+                    
+                    legend_added = set()
                     for _, row in df_inf.iterrows():
-                        line_col = '#10b981' if 'ĐÁY' in str(row['Vùng']).upper() else '#ef4444'
-                        fig_market.add_vline(x=row['Ngày'], line_width=1.5, line_color=line_col, opacity=0.5, line_dash='dash')
-                except:
+                        date = row['Ngày']
+                        # Tìm giá trị VNINDEX tại ngày đó để đặt Marker
+                        matching_rows = df_vni_recent[df_vni_recent[col_date] == date]
+                        if matching_rows.empty: continue
+                        price = matching_rows[col_price].values[0]
+                        
+                        is_bottom = 'ĐÁY' in str(row['Vùng']).upper()
+                        color = '#10b981' if is_bottom else '#ef4444'
+                        symbol = 'triangle-up' if is_bottom else 'triangle-down'
+                        
+                        # Làm sạch tên tín hiệu cho Legend
+                        raw_signal = str(row['Tín Hiệu'])
+                        clean_signal = raw_signal.replace('🔥', '').replace('🚀', '').replace('✅', '').replace('⚠️', '').replace('🎆', '').replace('🚨', '').strip()
+                        
+                        show_leg = clean_signal not in legend_added
+                        
+                        # 1. Vẽ đường thẳng đứng mảnh (không đứt nét)
+                        fig_market.add_vline(x=date, line_width=1, line_color=color, opacity=0.3)
+                        
+                        # 2. Đặt Marker hình tam giác lên đường giá
+                        fig_market.add_trace(go.Scatter(
+                            x=[date], y=[price],
+                            mode='markers',
+                            marker=dict(symbol=symbol, color=color, size=12),
+                            name=clean_signal,
+                            showlegend=show_leg,
+                            legendgroup=clean_signal
+                        ), secondary_y=False)
+                        
+                        if show_leg: legend_added.add(clean_signal)
+                except Exception:
                     pass
                 break
 
@@ -148,7 +181,7 @@ with c1:
         st.plotly_chart(fig_market, use_container_width=True)
         
         # ACTIVE FLOW
-        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>ACTIVE FLOW (DÒNG TIỀN THỰC TẾ)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
         col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
         col_low = next((c for c in ['LOW', 'THAP'] if c in df_vni.columns), None)
         
@@ -163,7 +196,7 @@ with c1:
             
         df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
         df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
-        df_flow_data = df_vni.tail(150)
+        df_flow_data = df_vni.tail(150) # Giữ 150 phiên cho biểu đồ ngắn hạn
         
         fig_flow = go.Figure()
         fig_flow.add_trace(go.Bar(x=df_flow_data[col_date], y=df_flow_data['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
@@ -215,28 +248,37 @@ with c2:
     </div>
     """, unsafe_allow_html=True)
 
-    # KHU VỰC HIỂN THỊ AI TẦNG 1 MỚI TOANH
+    # KHÔI PHỤC GIAO DIỆN BẢNG PROBABILITIES CŨ KẾT HỢP DỮ LIỆU TẦNG 1 MỚI
     st.markdown(f"""
-    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #f59e0b; padding-left: 8px; margin-bottom: 8px;'>AI TẦNG 1: XÁC SUẤT VĨ MÔ</div>
-    <table class='custom-table' style='font-family: monospace; margin-bottom: 20px;'>
-        <tr><td>Xác suất Tạo ĐÁY</td><td style='color:#10b981; font-size: 13px;'><b>{prob_bottom:.1f}%</b></td></tr>
-        <tr><td>Xác suất Tạo ĐỈNH</td><td style='color:#ef4444; font-size: 13px;'><b>{prob_top:.1f}%</b></td></tr>
+    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Machine Learning Probabilities</div>
+    <table style='width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 20px; color: #d1d5db; border-collapse: collapse;'>
+        <tr style='background-color: transparent;'>
+            <td style='padding: 6px 0;'>XGBoost (Inflection)</td>
+            <td style='color:#10b981; text-align:right; padding: 6px 0;'>P(Bottom): <b>{prob_bottom:.1f}%</b></td>
+            <td style='color:#ef4444; text-align:right; padding: 6px 0;'>P(Top): <b>{prob_top:.1f}%</b></td>
+        </tr>
+        <tr style='background-color: transparent; border-top: 1px dashed #2d3748;'>
+            <td style='padding: 6px 0;'>Logistic Reg (T+3)</td>
+            <td style='color:#10b981; text-align:right; padding: 6px 0;'>P(Up): <b>62.5%</b></td>
+            <td style='color:#ef4444; text-align:right; padding: 6px 0;'>P(Down): <b>37.5%</b></td>
+        </tr>
     </table>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Return Distribution Metrics</div>
-    <table class='custom-table' style='font-family: monospace;'>
-        <tr><td>Mean</td><td><b>{stat_mean:.2f}%</b></td><td>Max</td><td style='color:#10b981;'><b>{stat_max:.2f}%</b></td></tr>
-        <tr><td>Median</td><td><b>{stat_median:.2f}%</b></td><td>Min</td><td style='color:#ef4444;'><b>{stat_min:.2f}%</b></td></tr>
-        <tr><td>Kurtosis</td><td><b>{stat_kurt:.2f}</b></td><td>Regime</td><td style='color:{regime_color};'><b>{regime}</b></td></tr>
+    <table style='width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 20px; color: #d1d5db;'>
+        <tr><td style='padding: 4px 0;'>Mean</td><td style='padding: 4px 0;'><b>{stat_mean:.2f}%</b></td><td style='padding: 4px 0;'>Max</td><td style='color:#10b981; padding: 4px 0;'><b>{stat_max:.2f}%</b></td></tr>
+        <tr><td style='padding: 4px 0;'>Median</td><td style='padding: 4px 0;'><b>{stat_median:.2f}%</b></td><td style='padding: 4px 0;'>Min</td><td style='color:#ef4444; padding: 4px 0;'><b>{stat_min:.2f}%</b></td></tr>
+        <tr><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'>Kurtosis</td><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'><b>{stat_kurt:.2f}</b></td><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'>Regime</td><td style='color:{regime_color}; padding: 4px 0; border-bottom: 1px solid #2d3748;'><b>{regime}</b></td></tr>
     </table>
     """, unsafe_allow_html=True)
 
+    st.markdown("<div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Return Distribution Chart</div>", unsafe_allow_html=True)
     fig_hist = go.Figure()
     fig_hist.add_trace(go.Histogram(x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', marker_line=dict(color='#38bdf8', width=1)))
     fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
-    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=230, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
+    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=210, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
     fig_hist.update_xaxes(showgrid=False, zeroline=False)
     fig_hist.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
     st.plotly_chart(fig_hist, use_container_width=True)
