@@ -238,18 +238,24 @@ with c1:
         
         if col_high and col_low:
             # 1. Tính toán Lực Mua và Lực Bán (Tổng = 100%)
-            df_vni['Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
-            df_vni['Active_Sell'] = 100 - df_vni['Active_Buy']
+            if 'Active_Buy_Ratio' in df_vni.columns:
+            df_vni['Real_Active_Buy'] = df_vni['Active_Buy_Ratio']
+            df_vni['Real_Active_Sell'] = 100 - df_vni['Active_Buy_Ratio']
+            else:
+            # Nếu vì lý do nào đó chưa có, mới dùng tạm proxy
+            df_vni['Real_Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
+            df_vni['Real_Active_Sell'] = 100 - df_vni['Real_Active_Buy']
             
             # 2. Tính Trend (Đường trung bình 10 phiên) để xem phe nào đang mạnh lên
-            df_vni['Buy_MA'] = df_vni['Active_Buy'].rolling(10).mean()
-            df_vni['Sell_MA'] = df_vni['Active_Sell'].rolling(10).mean()
+            df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
+            df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
             
             # 3. Lấy dữ liệu 150 phiên gần nhất để chart không bị quá rối
             df_flow = df_vni.tail(150)
             
             fig_flow = go.Figure()
-            
+            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
+            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))            
             # Vẽ 2 Cột Mua/Bán đứng cạnh nhau (Grouped Bars)
             fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
             fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
