@@ -437,7 +437,7 @@ with col_inf1:
         # Lọc ra các mã đang ở chế độ Extremistan (Biến động cực đại)
         df_extreme = df_stocks[df_stocks['REGIME'] == 'Extremistan'].head(7)
         
-        html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th>Lực Mua Chủ Động (Tick Proxy)</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
+        html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th style="color: #38bdf8;">LỰC MUA CHỦ ĐỘNG (REAL ORDER FLOW)</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
         for _, row in df_extreme.iterrows():
             ticker = row.get(col_ticker, 'N/A')
             price = row.get(col_price, 0)
@@ -462,7 +462,7 @@ with col_inf2:
     st.markdown("""
     * **Kiểm định Granger Causality:** Đánh giá tính nhân quả để xác định dòng tiền lớn (Volume) thực sự có tác động dẫn dắt Giá (Price) hay không.
     * **Volatility Regime:** Phân loại môi trường giao dịch thành `Mediocristan` (Tích lũy bình yên) và `Extremistan` (Biến động bùng nổ, rủi ro cao).
-    * **Active Buy Ratio:** Ước lượng lực mua chủ động dựa trên vị thế đóng cửa trong khung giá (High-Low) của phiên giao dịch.
+    * **Active Buy Ratio:** Lực mua chủ động dựa trên vị thế đóng cửa trong khung giá (High-Low) của phiên giao dịch.
     """)
 
 st.markdown('</div>', unsafe_allow_html=True)
