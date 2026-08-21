@@ -6,7 +6,7 @@ import numpy as np
 import os
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
-st.set_page_config(page_title="E.V Quant Executive Terminal V5.2", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="E.V Quant Executive Terminal V5.3", layout="wide", initial_sidebar_state="collapsed")
 
 # --- CUSTOM CSS: BENTO GRID & MODERN UI ---
 st.markdown("""
@@ -70,16 +70,24 @@ st.markdown("""
 def load_data():
     try:
         if not os.path.exists("MASTER_QUANT_DB.csv"):
-            return pd.DataFrame(), False, "Không tìm thấy file MASTER_QUANT_DB.csv trên hệ thống."
+            return pd.DataFrame(), False, "Không tìm thấy file MASTER_QUANT_DB.csv."
             
         df = pd.read_csv("MASTER_QUANT_DB.csv")
         df.columns = [str(col).strip().upper() for col in df.columns]
         
-        # Ép kiểu dữ liệu số cho các cột quan trọng để tránh lỗi nan%
+        # Chuẩn hóa các cột số quan trọng
         numeric_cols = ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'VOLUME', 'VOL', 'HIGH', 'LOW', 'ACTIVE_BUY_RATIO', 'ML_WINRATE', 'RS3M_SCORE']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce')
+                
+        # Tự động tạo HIGH/LOW giả lập nếu file thiếu để bảo vệ app không bao giờ sập
+        price_col = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE'] if c in df.columns), None)
+        if price_col:
+            if 'HIGH' not in df.columns:
+                df['HIGH'] = df[price_col] * 1.01
+            if 'LOW' not in df.columns:
+                df['LOW'] = df[price_col] * 0.99
                 
         return df, True, ""
     except Exception as e:
@@ -89,7 +97,7 @@ df, data_ok, err_msg = load_data()
 
 # --- HEADER CHÍNH ---
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>QUANTITATIVE CHECKING SYSTEM</h2>", unsafe_allow_html=True)
-st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Beta version - Executive Terminal V5.2</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Beta version - Executive Terminal V5.3</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok or df.empty:
     st.error(f"⚠️ Chưa đọc được file dữ liệu. Chi tiết lỗi: {err_msg}")
@@ -123,19 +131,6 @@ with c1:
         if col_vol in df_vni.columns:
             fig_market.add_trace(go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
             
-        # Overlays Savitzky-Golay (nếu có file)
-        for fname in ['Savitzky_Golay_10_Years_Full (1).csv', 'Savitzky_Golay_10_Years_Full.csv']:
-            if os.path.exists(fname):
-                try:
-                    df_inf = pd.read_csv(fname)
-                    df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
-                    df_inf = df_inf[df_inf['Ngày'] >= df_vni[col_date].min()]
-                    for _, row in df_inf.iterrows():
-                        fig_market.add_vline(x=row['Ngày'], line_width=1.5, line_color='#00ff00', opacity=0.4)
-                except:
-                    pass
-                break
-
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
             height=420, margin=dict(l=10, r=10, t=10, b=10), 
@@ -180,7 +175,7 @@ with c1:
         fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
         st.plotly_chart(fig_flow, use_container_width=True)
     else:
-        st.warning("Đang chờ đồng bộ dữ liệu VNINDEX từ hệ thống...")
+        st.warning("Đang đồng bộ dữ liệu VNINDEX...")
 
 with c2:
     vni_latest_close, vni_latest_date = "N/A", "N/A"
@@ -220,7 +215,6 @@ with c2:
     </table>
     """, unsafe_allow_html=True)
 
-    # Histogram
     fig_hist = go.Figure()
     fig_hist.add_trace(go.Histogram(x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', marker_line=dict(color='#38bdf8', width=1)))
     fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
@@ -232,7 +226,7 @@ with c2:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ====================================================================================
-# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (LẤY DỮ LIỆU TỪ SNAPSHOT CỔ PHIẾU)
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
 st.markdown('<div class="box-title">TOP PICK BY ML & GRANGER</div>', unsafe_allow_html=True)
@@ -307,7 +301,7 @@ with col_inf1:
         else:
             st.markdown(html_table_2, unsafe_allow_html=True)
     else:
-        st.write("Đang chờ đồng bộ dữ liệu Regime...")
+        st.write("Đang chờ dữ liệu Regime...")
 
 with col_inf2:
     st.markdown("##### 🔍 Ý nghĩa thuật toán & Kiểm định:")
