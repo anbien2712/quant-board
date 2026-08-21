@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-import os # Đã thêm thư viện này để check file
+import os
 
 # --- CẤU HÌNH TRANG WIDE MODE ---
 st.set_page_config(page_title="E.V Quant Executive Terminal V5.1", layout="wide", initial_sidebar_state="collapsed")
@@ -94,7 +94,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- ĐỌC DỮ LIỆU TỪ MASTER DB ---
-@st.cache_data(ttl=300) # Cache dữ liệu 5 phút để load mượt mà
+@st.cache_data(ttl=300)
 def load_data():
     try:
         df = pd.read_csv("MASTER_QUANT_DB.csv")
@@ -130,9 +130,10 @@ df_stocks = df[df[col_ticker].astype(str).str.upper() != 'VNINDEX'].copy()
 # KHU VỰC 1: TRẠNG THÁI VNINDEX & LỊCH SỬ VĨ MÔ
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">MACHINE LEARNING</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">MACHINE LEARNING & MARKET FLOW</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 1])
+
 with c1:
     if not df_vni.empty and col_date and col_price:
         df_vni[col_date] = pd.to_datetime(df_vni[col_date])
@@ -140,13 +141,13 @@ with c1:
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
         
-        # Đường giá cơ bản của anh
+        # Đường giá cơ bản
         fig_market.add_trace(
             go.Scatter(x=df_vni[col_date], y=df_vni[col_price], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), 
             secondary_y=False
         )
         
-        # Volume cơ bản của anh
+        # Volume cơ bản
         if col_vol in df_vni.columns:
             fig_market.add_trace(
                 go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), 
@@ -168,8 +169,8 @@ with c1:
                 
                 # Bảng màu Neon cho nền tối
                 color_map = {
-                    'Đáy Mạnh (Climax)': '#00ff00', 'Đáy Cạn Cung': '#69f0ae', 'Đáy Yếu': '#b9f6ca',           
-                    'Đỉnh Phân Phối': '#ff1744', 'Đỉnh Rướn': '#ff8a80',         
+                    'Đáy Mạnh (Climax)': '#00ff00', 'Đáy Cạn Cung': '#69f0ae', 'Đáy Yếu': '#b9f6ca',            
+                    'Đỉnh Phân Phối': '#ff1744', 'Đỉnh Rướn': '#ff8a80',          
                 }
                 
                 # Tạo legend (chú thích)
@@ -181,7 +182,6 @@ with c1:
                     
                 for _, row in df_inf.iterrows():
                     date = row['Ngày']
-                    # Tìm mức giá của VNINDEX ngày hôm đó để cắm mũi tên
                     match = df_vni[df_vni[col_date] == date]
                     if match.empty: continue
                     
@@ -193,11 +193,11 @@ with c1:
                         if "SELLING CLIMAX" in signal or "BÙNG NỔ" in signal: color, line_w = color_map['Đáy Mạnh (Climax)'], 2.5
                         elif "YẾU" in signal: color, line_w = color_map['Đáy Yếu'], 1.0
                         else: color, line_w = color_map['Đáy Cạn Cung'], 1.5
-                        y_pos = price * 0.97 # Cắm mũi tên phía dưới đường giá
+                        y_pos = price * 0.97 
                     else:
                         if "BUYING CLIMAX" in signal or "PHÂN PHỐI" in signal: color, line_w = color_map['Đỉnh Phân Phối'], 2.5
                         else: color, line_w = color_map['Đỉnh Rướn'], 1.5
-                        y_pos = price * 1.03 # Cắm mũi tên phía trên đường giá
+                        y_pos = price * 1.03 
                         
                     hover_text = (f"<b>{row['Tín Hiệu']}</b><br>Xanh: {row['Tiền Xanh']}<br>Đỏ: {row['Tiền Đỏ']}<br>Vol: {row['Vol']}<br>Mua: {row['Mua']}")
                     
@@ -211,62 +211,53 @@ with c1:
                         text=hover_text, hoverinfo="text", showlegend=False
                     ), secondary_y=False)
             except Exception as e:
-                pass # Bỏ qua lỗi vẽ để không làm sập web
+                pass 
         # ----------------------------------------------------------------------------------
             
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
             height=420, margin=dict(l=10, r=10, t=10, b=10), 
-            legend=dict(
-                orientation="h", 
-                yanchor="bottom", 
-                y=1.02, 
-                xanchor="right", 
-                x=1,
-                font=dict(color="white") # <--- ÉP MÀU CHỮ TRẮNG Ở ĐÂY
-            )
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="white"))
         )
         fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_market, use_container_width=True)
-        # THÊM MỚI: BIỂU ĐỒ DÒNG TIỀN CHỦ ĐỘNG (NẰM DƯỚI CHART VNINDEX)
+        
         # =================================================================
-        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>ACTIVE FLOW</div>", unsafe_allow_html=True)
+        # BIỂU ĐỒ DÒNG TIỀN CHỦ ĐỘNG (REAL ORDER FLOW)
+        # =================================================================
+        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>ACTIVE FLOW (DÒNG TIỀN THỰC TẾ)</div>", unsafe_allow_html=True)
         
         col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
         col_low = next((c for c in ['LOW', 'THAP'] if c in df_vni.columns), None)
         
-if col_high and col_low:
-        # --- BẮT ĐẦU VÙNG ĐÃ ĐƯỢC CĂN CHỈNH LỀ CHUẨN ---
-        # 1. Tính toán Lực Mua và Lực Bán (Tổng = 100%)
+        # Tính toán dòng tiền
         if 'ACTIVE_BUY_RATIO' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
             df_vni['Real_Active_Sell'] = 100 - df_vni['ACTIVE_BUY_RATIO']
-        else:
-            # Nếu vì lý do nào đó chưa có cột này, mới dùng tạm proxy HLC
+        elif col_high and col_low:
             df_vni['Real_Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
             df_vni['Real_Active_Sell'] = 100 - df_vni['Real_Active_Buy']
+        else:
+            df_vni['Real_Active_Buy'] = 50.0
+            df_vni['Real_Active_Sell'] = 50.0
             
-        # 2. Tính Trend (Đường trung bình 10 phiên)
         df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
         df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
         
-        # 3. Lấy dữ liệu 150 phiên gần nhất
         df_flow = df_vni.tail(150)
         
-        # 4. Vẽ Biểu đồ
         fig_flow = go.Figure()
-        
-        # Vẽ 2 Cột Mua/Bán đứng cạnh nhau (Grouped Bars)
+        # Biểu đồ cột Grouped Bars
         fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
         fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
         
-        # Vẽ 2 Đường Line Xu hướng cắt nhau
+        # Đường MA xu hướng
         fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Buy_MA'], mode='lines', line=dict(color='#10b981', width=2), name='Trend Mua (MA10)'))
         fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Sell_MA'], mode='lines', line=dict(color='#ef4444', width=2), name='Trend Bán (MA10)'))
         
         fig_flow.update_layout(
-            barmode='group', # Xếp 2 cột đứng cạnh nhau
+            barmode='group',
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
             height=250, margin=dict(l=10, r=10, t=10, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
@@ -276,12 +267,11 @@ if col_high and col_low:
         fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
         
         st.plotly_chart(fig_flow, use_container_width=True)
-        # --- KẾT THÚC VÙNG CĂN CHỈNH LỀ ---
     else:
         st.warning("Đang chờ đồng bộ dữ liệu VNINDEX từ hệ thống...")
 
 with c2:
-# --- 1. XỬ LÝ DỮ LIỆU CƠ BẢN ---
+    # --- 1. XỬ LÝ DỮ LIỆU CƠ BẢN ---
     if not df_vni.empty and col_price in df_vni.columns and col_date in df_vni.columns:
         vni_latest_close = df_vni[col_price].iloc[-1]
         vni_latest_date = df_vni[col_date].iloc[-1].strftime('%d/%m/%Y')
@@ -369,15 +359,12 @@ with c2:
     st.markdown("<div class='quant-section-title'>Return Distribution Chart</div>", unsafe_allow_html=True)
     
     fig_hist = go.Figure()
-    
     fig_hist.add_trace(go.Histogram(
         x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', 
         marker_line=dict(color='#38bdf8', width=1), name='Returns'
     ))
-    
     fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
     
-    # Chiều cao (height) được đẩy lên 350px để vừa khít với đáy của biểu đồ Dòng tiền bên trái
     fig_hist.update_layout(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), 
         height=350, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1
@@ -386,14 +373,16 @@ with c2:
     fig_hist.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
     
     st.plotly_chart(fig_hist, use_container_width=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 # ====================================================================================
 # KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (MÔ HÌNH ML & GRANGER)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">TOP PICK BY ML & GRANGER </div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">TOP PICK BY ML & GRANGER</div>', unsafe_allow_html=True)
 
 if not df_stocks.empty:
-    # Sắp xếp theo xác suất thắng của Machine Learning
     col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df_stocks.columns), None)
     if col_ml:
         df_top = df_stocks.sort_values(by=col_ml, ascending=False).head(10)
@@ -410,7 +399,6 @@ if not df_stocks.empty:
         rs_val = row.get('RS3M_SCORE', 0)
         flow = row.get('FLOW', 'N/A')
         
-        # Tạo badge định dạng màu sắc cho Flow
         if "Nổ thanh khoản" in flow or "Dòng tiền thật" in flow:
             badge = f'<span class="badge-bull">{flow}</span>'
         elif "Trap" in flow or "Xả" in flow or "Phân phối" in flow:
@@ -442,7 +430,6 @@ st.markdown('<div class="box-title">VOLATILITY REGIME</div>', unsafe_allow_html=
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
     if not df_stocks.empty and 'REGIME' in df_stocks.columns:
-        # Lọc ra các mã đang ở chế độ Extremistan (Biến động cực đại)
         df_extreme = df_stocks[df_stocks['REGIME'] == 'Extremistan'].head(7)
         
         html_table_2 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá Hiện Tại</th><th style="color: #38bdf8;">LỰC MUA CHỦ ĐỘNG (REAL ORDER FLOW)</th><th>Chế Độ Biến Động</th></tr></thead><tbody>'
@@ -470,13 +457,13 @@ with col_inf2:
     st.markdown("""
     * **Kiểm định Granger Causality:** Đánh giá tính nhân quả để xác định dòng tiền lớn (Volume) thực sự có tác động dẫn dắt Giá (Price) hay không.
     * **Volatility Regime:** Phân loại môi trường giao dịch thành `Mediocristan` (Tích lũy bình yên) và `Extremistan` (Biến động bùng nổ, rủi ro cao).
-    * **Active Buy Ratio:** Lực mua chủ động dựa trên vị thế đóng cửa trong khung giá (High-Low) của phiên giao dịch.
+    * **Active Buy Ratio:** Đo lường **trực tiếp** lực mua/bán chủ động từ dữ liệu khớp lệnh (Order Flow) thực tế của sàn. Tỷ lệ > 50% cho thấy Phe Mua đang chủ động vác tiền ăn lên.
     """)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ====================================================================================
-# KHU VỰC 4: LA BÀN ĐỘ RỘNG & BACKTEST
+# KHU VỰC 4 & 5: LA BÀN ĐỘ RỘNG, BACKTEST & QUẢN TRỊ RỦI RO
 # ====================================================================================
 col_mb, col_bt = st.columns([1, 1])
 
@@ -520,9 +507,6 @@ with col_bt:
     st.plotly_chart(fig_bt, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ====================================================================================
-# KHU VỰC 5: QUẢN TRỊ RỦI RO CHUYÊN SÂU
-# ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
 st.markdown('<div class="box-title">RISK MANAGEMENT</div>', unsafe_allow_html=True)
 
