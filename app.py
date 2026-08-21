@@ -238,10 +238,10 @@ with c1:
         
         if col_high and col_low:
             # 1. Tính toán Lực Mua và Lực Bán (Tổng = 100%)
-            if 'Active_Buy_Ratio' in df_vni.columns:
+        if 'Active_Buy_Ratio' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['Active_Buy_Ratio']
             df_vni['Real_Active_Sell'] = 100 - df_vni['Active_Buy_Ratio']
-            else:
+        else:
             # Nếu vì lý do nào đó chưa có, mới dùng tạm proxy
             df_vni['Real_Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
             df_vni['Real_Active_Sell'] = 100 - df_vni['Real_Active_Buy']
