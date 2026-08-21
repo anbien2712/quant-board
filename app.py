@@ -61,11 +61,10 @@ st.markdown("""
     .badge-bull { background-color: rgba(16, 185, 129, 0.15); color: #34d399; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 11px; display: inline-block; }
     .badge-bear { background-color: rgba(239, 68, 68, 0.15); color: #f87171; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 11px; display: inline-block; }
     .badge-stable { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 11px; display: inline-block; }
-    .metric-value { color: #3b82f6; font-size: 24px; font-weight: 800; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- ĐỌC VÀ CHUẨN HÓA DỮ LIỆU AN TOÀN TUYỆT ĐỐI ---
+# --- ĐỌC VÀ CHUẨN HÓA DỮ LIỆU AN TOÀN ---
 @st.cache_data(ttl=300)
 def load_data():
     try:
@@ -75,19 +74,15 @@ def load_data():
         df = pd.read_csv("MASTER_QUANT_DB.csv")
         df.columns = [str(col).strip().upper() for col in df.columns]
         
-        # Chuẩn hóa các cột số quan trọng
-        numeric_cols = ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'VOLUME', 'VOL', 'HIGH', 'LOW', 'ACTIVE_BUY_RATIO', 'ML_WINRATE', 'RS3M_SCORE']
+        numeric_cols = ['CLOSE', 'CLOSE_PRICE', 'PRICE', 'VOLUME', 'VOL', 'HIGH', 'LOW', 'ACTIVE_BUY_RATIO', 'ML_WINRATE', 'PROB_TOP', 'RS3M_SCORE']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce')
                 
-        # Tự động tạo HIGH/LOW giả lập nếu file thiếu để bảo vệ app không bao giờ sập
         price_col = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE'] if c in df.columns), None)
         if price_col:
-            if 'HIGH' not in df.columns:
-                df['HIGH'] = df[price_col] * 1.01
-            if 'LOW' not in df.columns:
-                df['LOW'] = df[price_col] * 0.99
+            if 'HIGH' not in df.columns: df['HIGH'] = df[price_col] * 1.01
+            if 'LOW' not in df.columns: df['LOW'] = df[price_col] * 0.99
                 
         return df, True, ""
     except Exception as e:
@@ -95,15 +90,13 @@ def load_data():
 
 df, data_ok, err_msg = load_data()
 
-# --- HEADER CHÍNH ---
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>QUANTITATIVE CHECKING SYSTEM</h2>", unsafe_allow_html=True)
-st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Beta version - Executive Terminal V5.3</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Executive Terminal V5.3 - Hệ thống Định lượng 2 Tầng AI</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok or df.empty:
     st.error(f"⚠️ Chưa đọc được file dữ liệu. Chi tiết lỗi: {err_msg}")
     st.stop()
 
-# --- BÓC TÁCH DỮ LIỆU ---
 col_ticker = next((c for c in ['TICKER', 'MÃ', 'SYMBOL'] if c in df.columns), df.columns[0])
 col_date = next((c for c in ['DATE', 'TIME', 'NGAY'] if c in df.columns), None)
 col_price = next((c for c in ['CLOSE', 'CLOSE_PRICE', 'PRICE'] if c in df.columns), None)
@@ -131,6 +124,20 @@ with c1:
         if col_vol in df_vni.columns:
             fig_market.add_trace(go.Bar(x=df_vni[col_date], y=df_vni[col_vol], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.3)'), secondary_y=True)
             
+        # KHÔI PHỤC VẠCH ĐIỂM UỐN SAVITZKY-GOLAY 
+        for fname in ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']:
+            if os.path.exists(fname):
+                try:
+                    df_inf = pd.read_csv(fname)
+                    df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
+                    df_inf = df_inf[df_inf['Ngày'] >= df_vni[col_date].min()]
+                    for _, row in df_inf.iterrows():
+                        line_col = '#10b981' if 'ĐÁY' in str(row['Vùng']).upper() else '#ef4444'
+                        fig_market.add_vline(x=row['Ngày'], line_width=1.5, line_color=line_col, opacity=0.5, line_dash='dash')
+                except:
+                    pass
+                break
+
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
             height=420, margin=dict(l=10, r=10, t=10, b=10), 
@@ -152,8 +159,7 @@ with c1:
             df_vni['Real_Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 1e-9)) * 100
             df_vni['Real_Active_Sell'] = 100 - df_vni['Real_Active_Buy']
         else:
-            df_vni['Real_Active_Buy'] = 50.0
-            df_vni['Real_Active_Sell'] = 50.0
+            df_vni['Real_Active_Buy'] = 50.0; df_vni['Real_Active_Sell'] = 50.0
             
         df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
         df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
@@ -179,10 +185,13 @@ with c1:
 
 with c2:
     vni_latest_close, vni_latest_date = "N/A", "N/A"
+    prob_bottom, prob_top = 0.0, 0.0
     if not df_vni.empty and col_price in df_vni.columns and col_date in df_vni.columns:
         vni_latest_close = df_vni[col_price].iloc[-1]
         vni_latest_date = df_vni[col_date].iloc[-1].strftime('%d/%m/%Y')
-        vni_str = f"{vni_latest_close:,.2f}" if pd.notnull(vni_latest_close) else "N/A"
+        vni_str = f"{vni_latest_close:,.2f}"
+        if 'ML_WINRATE' in df_vni.columns: prob_bottom = df_vni['ML_WINRATE'].iloc[-1]
+        if 'PROB_TOP' in df_vni.columns: prob_top = df_vni['PROB_TOP'].iloc[-1]
     else:
         vni_str = "N/A"
 
@@ -200,10 +209,19 @@ with c2:
 
     st.markdown(f"<div style='color: #f3f4f6; font-size: 15px; font-weight: 700; text-transform: uppercase;'>MARKET OVERVIEW - {vni_latest_date}</div>", unsafe_allow_html=True)
     st.markdown(f"""
-    <div class='quant-price-box' style='display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #2d3748; padding-bottom: 8px; margin-bottom: 20px;'>
+    <div style='display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #2d3748; padding-bottom: 8px; margin-bottom: 15px;'>
         <span style='color: #9ca3af; font-size: 12px;'>CURRENT INDEX (VNINDEX)</span>
         <span style='color: #38bdf8; font-size: 24px; font-weight: 800;'>{vni_str}</span>
     </div>
+    """, unsafe_allow_html=True)
+
+    # KHU VỰC HIỂN THỊ AI TẦNG 1 MỚI TOANH
+    st.markdown(f"""
+    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #f59e0b; padding-left: 8px; margin-bottom: 8px;'>AI TẦNG 1: XÁC SUẤT VĨ MÔ</div>
+    <table class='custom-table' style='font-family: monospace; margin-bottom: 20px;'>
+        <tr><td>Xác suất Tạo ĐÁY</td><td style='color:#10b981; font-size: 13px;'><b>{prob_bottom:.1f}%</b></td></tr>
+        <tr><td>Xác suất Tạo ĐỈNH</td><td style='color:#ef4444; font-size: 13px;'><b>{prob_top:.1f}%</b></td></tr>
+    </table>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
@@ -218,7 +236,7 @@ with c2:
     fig_hist = go.Figure()
     fig_hist.add_trace(go.Histogram(x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', marker_line=dict(color='#38bdf8', width=1)))
     fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
-    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=350, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
+    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=230, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
     fig_hist.update_xaxes(showgrid=False, zeroline=False)
     fig_hist.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
     st.plotly_chart(fig_hist, use_container_width=True)
@@ -226,10 +244,10 @@ with c2:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ====================================================================================
-# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT
+# KHU VỰC 2: TOP CỔ PHIẾU DẪN DẮT (AI TẦNG 2)
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">TOP PICK BY ML & GRANGER</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">AI TẦNG 2: TOP PICK BY ML & GRANGER</div>', unsafe_allow_html=True)
 
 if not df_stocks.empty:
     col_ml = next((c for c in ['ML_WINRATE', 'WINRATE'] if c in df_stocks.columns), None)
@@ -238,10 +256,11 @@ if not df_stocks.empty:
     else:
         df_top = df_stocks.head(10)
 
-    html_table_1 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Giá</th><th>Khối Lượng</th><th>Xác Suất Tăng (ML)</th><th>Sức Mạnh Giá (RS3M)</th><th>Hành Vi Dòng Tiền (Granger)</th></tr></thead><tbody>'
+    html_table_1 = '<table class="custom-table"><thead><tr><th>Mã CK</th><th>Ngành (Sector)</th><th>Giá</th><th>Khối Lượng</th><th>Xác Suất Tăng (AI)</th><th>Sức Mạnh Giá (RS3M)</th><th>Hành Vi Dòng Tiền</th></tr></thead><tbody>'
     
     for _, row in df_top.iterrows():
         ticker = row.get(col_ticker, 'N/A')
+        sector = row.get('SECTOR', 'N/A')
         p_val = row.get(col_price, 0)
         v_val = row.get(col_vol, 0)
         ml_val = row.get('ML_WINRATE', 0)
@@ -257,6 +276,7 @@ if not df_stocks.empty:
 
         html_table_1 += f"""<tr>
             <td style="font-weight:700; color:#fff;">{ticker}</td>
+            <td style="color:#9ca3af;">{sector}</td>
             <td>{p_val:,.1f}</td>
             <td>{v_val:,.0f}</td>
             <td style="color:#10b981; font-weight:600;">{ml_val:.1f}%</td>
@@ -274,7 +294,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # KHU VỰC 3: VOLATILITY REGIME
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">VOLATILITY REGIME</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">VOLATILITY REGIME & RISK MANAGEMENT</div>', unsafe_allow_html=True)
 
 col_inf1, col_inf2 = st.columns([3, 2])
 with col_inf1:
@@ -307,8 +327,9 @@ with col_inf2:
     st.markdown("##### 🔍 Ý nghĩa thuật toán & Kiểm định:")
     st.markdown("""
     * **Kiểm định Granger Causality:** Đánh giá tính nhân quả giữa Volume và Price.
-    * **Volatility Regime:** Phân loại môi trường `Mediocristan` và `Extremistan`.
+    * **Volatility Regime:** Phân loại môi trường rủi ro an toàn `Mediocristan` và rủi ro đuôi béo `Extremistan`.
     * **Active Buy Ratio:** Đo lường lực mua/bán chủ động từ dữ liệu khớp lệnh thực tế.
+    * **AI Tầng 1 & Tầng 2:** Tầng 1 dự báo điểm uốn Vĩ mô (Index), Tầng 2 chấm điểm xác suất tăng giá vi mô (Cổ phiếu).
     """)
 
 st.markdown('</div>', unsafe_allow_html=True)
