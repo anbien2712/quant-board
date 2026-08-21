@@ -236,45 +236,47 @@ with c1:
         col_high = next((c for c in ['HIGH', 'CAO'] if c in df_vni.columns), None)
         col_low = next((c for c in ['LOW', 'THAP'] if c in df_vni.columns), None)
         
-    if col_high and col_low:
-            # 1. Tính toán Lực Mua và Lực Bán (Tổng = 100%)
-    if 'Active_Buy_Ratio' in df_vni.columns:
-            df_vni['Real_Active_Buy'] = df_vni['Active_Buy_Ratio']
-            df_vni['Real_Active_Sell'] = 100 - df_vni['Active_Buy_Ratio']
-    else:
-            # Nếu vì lý do nào đó chưa có, mới dùng tạm proxy
+if col_high and col_low:
+        # --- BẮT ĐẦU VÙNG ĐÃ ĐƯỢC CĂN CHỈNH LỀ CHUẨN ---
+        # 1. Tính toán Lực Mua và Lực Bán (Tổng = 100%)
+        if 'ACTIVE_BUY_RATIO' in df_vni.columns:
+            df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
+            df_vni['Real_Active_Sell'] = 100 - df_vni['ACTIVE_BUY_RATIO']
+        else:
+            # Nếu vì lý do nào đó chưa có cột này, mới dùng tạm proxy HLC
             df_vni['Real_Active_Buy'] = ((df_vni[col_price] - df_vni[col_low]) / (df_vni[col_high] - df_vni[col_low] + 0.001)) * 100
             df_vni['Real_Active_Sell'] = 100 - df_vni['Real_Active_Buy']
             
-            # 2. Tính Trend (Đường trung bình 10 phiên) để xem phe nào đang mạnh lên
-            df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
-            df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
-            
-            # 3. Lấy dữ liệu 150 phiên gần nhất để chart không bị quá rối
-            df_flow = df_vni.tail(150)
-            
-            fig_flow = go.Figure()
-            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
-            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))            
-            # Vẽ 2 Cột Mua/Bán đứng cạnh nhau (Grouped Bars)
-            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
-            fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
-            
-            # Vẽ 2 Đường Line Xu hướng cắt nhau
-            fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Buy_MA'], mode='lines', line=dict(color='#10b981', width=2), name='Trend Mua (MA10)'))
-            fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Sell_MA'], mode='lines', line=dict(color='#ef4444', width=2), name='Trend Bán (MA10)'))
-            
-            fig_flow.update_layout(
-                barmode='group', # Xếp 2 cột đứng cạnh nhau
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
-                height=250, margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
-                hovermode="x unified"
-            )
-            fig_flow.update_xaxes(showgrid=False, zeroline=False)
-            fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
-            
-            st.plotly_chart(fig_flow, use_container_width=True)
+        # 2. Tính Trend (Đường trung bình 10 phiên)
+        df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
+        df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
+        
+        # 3. Lấy dữ liệu 150 phiên gần nhất
+        df_flow = df_vni.tail(150)
+        
+        # 4. Vẽ Biểu đồ
+        fig_flow = go.Figure()
+        
+        # Vẽ 2 Cột Mua/Bán đứng cạnh nhau (Grouped Bars)
+        fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
+        fig_flow.add_trace(go.Bar(x=df_flow[col_date], y=df_flow['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
+        
+        # Vẽ 2 Đường Line Xu hướng cắt nhau
+        fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Buy_MA'], mode='lines', line=dict(color='#10b981', width=2), name='Trend Mua (MA10)'))
+        fig_flow.add_trace(go.Scatter(x=df_flow[col_date], y=df_flow['Sell_MA'], mode='lines', line=dict(color='#ef4444', width=2), name='Trend Bán (MA10)'))
+        
+        fig_flow.update_layout(
+            barmode='group', # Xếp 2 cột đứng cạnh nhau
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
+            height=250, margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
+            hovermode="x unified"
+        )
+        fig_flow.update_xaxes(showgrid=False, zeroline=False)
+        fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
+        
+        st.plotly_chart(fig_flow, use_container_width=True)
+        # --- KẾT THÚC VÙNG CĂN CHỈNH LỀ ---
     else:
         st.warning("Đang chờ đồng bộ dữ liệu VNINDEX từ hệ thống...")
 
