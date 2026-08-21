@@ -24,7 +24,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- ĐỌC DỮ LIỆU NGUYÊN CHẤT ---
+# --- ĐỌC DỮ LIỆU ---
 @st.cache_data(ttl=300)
 def load_data():
     try:
@@ -40,7 +40,7 @@ def load_data():
 df, data_ok, err_msg = load_data()
 
 st.markdown("<h2 style='color: #3b82f6; margin-bottom: 0;'>QUANTITATIVE CHECKING SYSTEM</h2>", unsafe_allow_html=True)
-st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Executive Terminal V5.3 - Pure Data Edition</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
+st.markdown("<p style='color: #9ca3af; font-size: 14px;'>Executive Terminal V5.3 - Advanced Layout</p><hr style='border-color: #1f2937;'>", unsafe_allow_html=True)
 
 if not data_ok or df.empty:
     st.error(f"⚠️ Chưa đọc được file dữ liệu. Chi tiết lỗi: {err_msg}")
@@ -54,41 +54,50 @@ df_stocks = df[df['TICKER'] != 'VNINDEX'].copy()
 # KHU VỰC 1: TRẠNG THÁI VNINDEX & ACTIVE FLOW
 # ====================================================================================
 st.markdown('<div class="bento-box">', unsafe_allow_html=True)
-st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô (Chuỗi dữ liệu 2023 - Nay)</div>', unsafe_allow_html=True)
+st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ Lịch Sử Vĩ Mô</div>', unsafe_allow_html=True)
 
-c1, c2 = st.columns([2, 1])
+# Chia cột theo tỷ lệ chuẩn 7:3 để cân đối layout
+c1, c2 = st.columns([7, 3])
 
 with c1:
     if not df_vni.empty and 'DATE' in df_vni.columns and 'CLOSE' in df_vni.columns:
         df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
         df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
         
-        # Chỉ lấy dữ liệu thật từ năm 2023
-        df_vni_recent = df_vni[df_vni['DATE'] >= '2023-01-01'].copy()
+        # Lấy ngày để làm mặc định cho slider (250 phiên)
+        default_start = df_vni['DATE'].iloc[-250] if len(df_vni) > 250 else df_vni['DATE'].iloc[0]
+        default_end = df_vni['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_market.add_trace(go.Scatter(x=df_vni_recent['DATE'], y=df_vni_recent['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
-        if 'VOLUME' in df_vni_recent.columns:
-            fig_market.add_trace(go.Bar(x=df_vni_recent['DATE'], y=df_vni_recent['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+        if 'VOLUME' in df_vni.columns:
+            fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
-        # ÁP DỤNG MÀU SẮC & MARKER TỪ DỮ LIỆU THẬT 
+        # 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG
         color_map = {
-            'Đáy Mạnh (Climax)': '#00ff00', 'Đáy Cạn Cung': '#10b981', 'Đáy Yếu': '#a7f3d0',
-            'Đỉnh Phân Phối': '#ff0000', 'Đỉnh Rớn': '#fca5a5'
+            'Đáy Mạnh (Climax)': {'col': '#00e676', 'sym': 'triangle-up'},   # Xanh Neon
+            'Đáy Cạn Cung':      {'col': '#00b0ff', 'sym': 'triangle-up'},   # Xanh Cyan
+            'Đáy Yếu':           {'col': '#eab308', 'sym': 'triangle-up'},   # Vàng Amber
+            'Đỉnh Phân Phối':    {'col': '#ff1744', 'sym': 'triangle-down'}, # Đỏ Neon
+            'Đỉnh Rớn':          {'col': '#ff9100', 'sym': 'triangle-down'}  # Cam sáng
         }
         
+        # Khởi tạo Legend giả để luôn hiển thị đủ màu chú thích
+        for name, cfg in color_map.items():
+            fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
+        
+        # Quét và vẽ Điểm uốn
         for fname in ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']:
             if os.path.exists(fname):
                 try:
                     df_inf = pd.read_csv(fname)
                     df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
-                    df_inf = df_inf[df_inf['Ngày'] >= df_vni_recent['DATE'].min()]
+                    df_inf = df_inf[df_inf['Ngày'] >= df_vni['DATE'].min()]
                     
-                    legend_added = set()
                     for _, row in df_inf.iterrows():
                         date = row['Ngày']
-                        match = df_vni_recent[df_vni_recent['DATE'] == date]
+                        match = df_vni[df_vni['DATE'] == date]
                         if match.empty: continue
                         price = match['CLOSE'].values[0]
                         
@@ -101,32 +110,33 @@ with c1:
                         elif 'RỚN' in raw_sig: cat = 'Đỉnh Rớn'
                         else: cat = 'Đáy Mạnh (Climax)' if 'ĐÁY' in str(row['Vùng']).upper() else 'Đỉnh Phân Phối'
 
-                        col = color_map.get(cat, '#ffffff')
-                        sym = 'triangle-up' if 'Đáy' in cat else 'triangle-down'
-                        show_leg = cat not in legend_added
+                        cfg = color_map[cat]
                         
-                        fig_market.add_vline(x=date, line_width=1.5, line_color=col, opacity=0.5)
-                        fig_market.add_trace(go.Scatter(
-                            x=[date], y=[price], mode='markers', 
-                            marker=dict(symbol=sym, color=col, size=12), 
-                            name=cat, showlegend=show_leg, legendgroup=cat
-                        ), secondary_y=False)
-                        
-                        if show_leg: legend_added.add(cat)
+                        # Vạch đứng (Vertical Line) mờ
+                        fig_market.add_vline(x=date, line_width=1.5, line_color=cfg['col'], opacity=0.4)
+                        # Hình tam giác chốt chặn trên đường giá
+                        fig_market.add_trace(go.Scatter(x=[date], y=[price], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
                 except Exception: pass
                 break
 
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-            height=450, margin=dict(l=10, r=10, t=10, b=10), 
+            height=500, margin=dict(l=10, r=10, t=10, b=10), 
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
+        )
+        # TÍCH HỢP THANH TRƯỢT THỜI GIAN (RANGE SLIDER) BÊN DƯỚI
+        fig_market.update_xaxes(
+            showgrid=False, zeroline=False,
+            range=[default_start, default_end],
+            rangeslider=dict(visible=True, thickness=0.06, bgcolor="#1f2937"),
+            type="date"
         )
         fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_market, use_container_width=True)
         
         # ACTIVE FLOW
-        st.markdown("<div class='box-title' style='margin-top: 20px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
         if 'ACTIVE_BUY_RATIO' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
             df_vni['Real_Active_Sell'] = 100 - df_vni['ACTIVE_BUY_RATIO']
@@ -142,7 +152,7 @@ with c1:
             
             fig_flow.update_layout(
                 barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
-                height=250, margin=dict(l=10, r=10, t=10, b=10),
+                height=260, margin=dict(l=10, r=10, t=10, b=10),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
                 hovermode="x unified"
             )
@@ -178,44 +188,45 @@ with c2:
     regime = "Extremistan" if stat_kurt > 1.5 else "Mediocristan"
     regime_color = "#ef4444" if regime == "Extremistan" else "#10b981"
 
-    st.markdown(f"<div style='color: #f3f4f6; font-size: 15px; font-weight: 700; text-transform: uppercase;'>MARKET OVERVIEW - {vni_latest_date}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='color: #f3f4f6; font-size: 15px; font-weight: 700; text-transform: uppercase; margin-bottom: 20px;'>MARKET OVERVIEW - {vni_latest_date}</div>", unsafe_allow_html=True)
     st.markdown(f"""
-    <div style='display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #2d3748; padding-bottom: 8px; margin-bottom: 15px;'>
-        <span style='color: #9ca3af; font-size: 12px;'>CURRENT INDEX (VNINDEX)</span>
-        <span style='color: #38bdf8; font-size: 24px; font-weight: 800;'>{vni_str}</span>
+    <div style='display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #2d3748; padding-bottom: 12px; margin-bottom: 20px;'>
+        <span style='color: #9ca3af; font-size: 13px;'>CURRENT INDEX (VNINDEX)</span>
+        <span style='color: #38bdf8; font-size: 28px; font-weight: 800;'>{vni_str}</span>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Machine Learning Probabilities</div>
-    <table style='width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 20px; color: #d1d5db; border-collapse: collapse;'>
+    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 10px;'>Machine Learning Probabilities</div>
+    <table style='width: 100%; font-family: monospace; font-size: 13px; margin-bottom: 25px; color: #d1d5db; border-collapse: collapse;'>
         <tr style='background-color: transparent;'>
-            <td style='padding: 6px 0;'>XGBoost (Inflection)</td>
-            <td style='color:#10b981; text-align:right; padding: 6px 0;'>P(Bottom): <b>{prob_bottom:.1f}%</b></td>
-            <td style='color:#ef4444; text-align:right; padding: 6px 0;'>P(Top): <b>{prob_top:.1f}%</b></td>
+            <td style='padding: 8px 0;'>XGBoost (Inflection)</td>
+            <td style='color:#10b981; text-align:right; padding: 8px 0;'>P(Bottom): <b>{prob_bottom:.1f}%</b></td>
+            <td style='color:#ef4444; text-align:right; padding: 8px 0;'>P(Top): <b>{prob_top:.1f}%</b></td>
         </tr>
         <tr style='background-color: transparent; border-top: 1px dashed #2d3748;'>
-            <td style='padding: 6px 0;'>Logistic Reg (T+3)</td>
-            <td style='color:#10b981; text-align:right; padding: 6px 0;'>P(Up): <b>62.5%</b></td>
-            <td style='color:#ef4444; text-align:right; padding: 6px 0;'>P(Down): <b>37.5%</b></td>
+            <td style='padding: 8px 0;'>Logistic Reg (T+3)</td>
+            <td style='color:#10b981; text-align:right; padding: 8px 0;'>P(Up): <b>62.5%</b></td>
+            <td style='color:#ef4444; text-align:right; padding: 8px 0;'>P(Down): <b>37.5%</b></td>
         </tr>
     </table>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Return Distribution Metrics</div>
-    <table style='width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 20px; color: #d1d5db;'>
-        <tr><td style='padding: 4px 0;'>Mean</td><td style='padding: 4px 0;'><b>{stat_mean:.2f}%</b></td><td style='padding: 4px 0;'>Max</td><td style='color:#10b981; padding: 4px 0;'><b>{stat_max:.2f}%</b></td></tr>
-        <tr><td style='padding: 4px 0;'>Median</td><td style='padding: 4px 0;'><b>{stat_median:.2f}%</b></td><td style='padding: 4px 0;'>Min</td><td style='color:#ef4444; padding: 4px 0;'><b>{stat_min:.2f}%</b></td></tr>
-        <tr><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'>Kurtosis</td><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'><b>{stat_kurt:.2f}</b></td><td style='padding: 4px 0; border-bottom: 1px solid #2d3748;'>Regime</td><td style='color:{regime_color}; padding: 4px 0; border-bottom: 1px solid #2d3748;'><b>{regime}</b></td></tr>
+    <div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 10px;'>Return Distribution Metrics</div>
+    <table style='width: 100%; font-family: monospace; font-size: 13px; margin-bottom: 25px; color: #d1d5db;'>
+        <tr><td style='padding: 6px 0;'>Mean</td><td style='padding: 6px 0;'><b>{stat_mean:.2f}%</b></td><td style='padding: 6px 0;'>Max</td><td style='color:#10b981; padding: 6px 0;'><b>{stat_max:.2f}%</b></td></tr>
+        <tr><td style='padding: 6px 0;'>Median</td><td style='padding: 6px 0;'><b>{stat_median:.2f}%</b></td><td style='padding: 6px 0;'>Min</td><td style='color:#ef4444; padding: 6px 0;'><b>{stat_min:.2f}%</b></td></tr>
+        <tr><td style='padding: 6px 0; border-bottom: 1px solid #2d3748;'>Kurtosis</td><td style='padding: 6px 0; border-bottom: 1px solid #2d3748;'><b>{stat_kurt:.2f}</b></td><td style='padding: 6px 0; border-bottom: 1px solid #2d3748;'>Regime</td><td style='color:{regime_color}; padding: 6px 0; border-bottom: 1px solid #2d3748;'><b>{regime}</b></td></tr>
     </table>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 8px;'>Return Distribution Chart</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color: #9ca3af; font-size: 11px; font-weight: 700; text-transform: uppercase; border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 10px;'>Return Distribution Chart</div>", unsafe_allow_html=True)
+    # Tăng chiều cao của Histogram để lấp đầy không gian cột phải
     fig_hist = go.Figure()
     fig_hist.add_trace(go.Histogram(x=returns_clean, nbinsx=50, marker_color='rgba(56, 189, 248, 0.7)', marker_line=dict(color='#38bdf8', width=1)))
     fig_hist.add_vline(x=0, line_width=1.5, line_dash="dot", line_color="#ef4444")
-    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=220, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
+    fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11), height=340, margin=dict(l=0, r=0, t=10, b=0), showlegend=False, bargap=0.1)
     fig_hist.update_xaxes(showgrid=False, zeroline=False)
     fig_hist.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False)
     st.plotly_chart(fig_hist, use_container_width=True)
