@@ -69,44 +69,50 @@ with c1:
         default_end = df_vni['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+        # Vẫn vẽ đường giá VNINDEX cho toàn bộ 10 năm
         fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
         if 'VOLUME' in df_vni.columns:
             fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
-        # 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG (ĐÃ CẬP NHẬT THEO AI TẦNG 1 MỚI)
+        # 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG
         color_map = {
-            "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},     # Xanh Neon
-            "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},     # Xanh Cyan
-            "⏳ Giằng co / Tích lũy":      {'col': 'rgba(0,0,0,0)', 'sym': 'circle'},    # Ẩn
-            "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'}, # Đỏ Neon
-            "🚨 Xả hàng / Bán tháo":       {'col': '#ff9100', 'sym': 'triangle-down'}    # Cam sáng
+            "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
+            "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},
+            "⏳ Giằng co / Tích lũy":      {'col': 'rgba(0,0,0,0)', 'sym': 'circle'},
+            "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'},
+            "🚨 Xả hàng / Bán tháo":       {'col': '#ff9100', 'sym': 'triangle-down'}
         }
         
-        # Khởi tạo Legend giả để luôn hiển thị đủ màu chú thích
+        # Khởi tạo Legend giả
         for name, cfg in color_map.items():
             if "Giằng co" not in name:
                 fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
         
-        # 🚀 ĐỌC TRỰC TIẾP TỪ CỘT 'FLOW' CỦA SIÊU ĐỘNG CƠ (Không đọc CSV nữa)
-        for _, row in df_vni.iterrows():
+        # 🚀 THỦ THUẬT CHỐNG TREO APP: Chỉ vẽ Marker & Vạch dọc cho 300 phiên gần nhất
+        df_draw = df_vni.tail(300) 
+        
+        for _, row in df_draw.iterrows():
             flow_state = str(row.get('FLOW', ''))
+            
             if flow_state in color_map and "Giằng co" not in flow_state:
                 cfg = color_map[flow_state]
                 date_val = row['DATE']
                 price_val = row['CLOSE']
                 
-                # Vạch đứng (Vertical Line) mờ
+                # Vẽ lại Vạch đứng (Vertical Line) mờ y như bản gốc của anh
                 fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
-                # Hình tam giác chốt chặn trên đường giá
+                # Vẽ từng Marker
                 fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
 
+        # Cấu hình giao diện biểu đồ
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
             height=500, margin=dict(l=10, r=10, t=10, b=10), 
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
         )
-        # TÍCH HỢP THANH TRƯỢT THỜI GIAN (RANGE SLIDER) BÊN DƯỚI
+        
+        # TÍCH HỢP THANH TRƯỢT THỜI GIAN
         fig_market.update_xaxes(
             showgrid=False, zeroline=False,
             range=[default_start, default_end],
