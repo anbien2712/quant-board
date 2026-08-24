@@ -60,92 +60,107 @@ st.markdown('<div class="box-title">📊 Trạng Thái VNINDEX & Biểu Đồ L�
 c1, c2 = st.columns([7, 3])
 
 with c1:
-    if not df_vni.empty and 'DATE' in df_vni.columns and 'CLOSE' in df_vni.columns:
-        df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
-        df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
-        
-        # Cắt lấy 500 phiên gần nhất để hiển thị mượt mà, chống treo app 100%
-        df_draw = df_vni.tail(500).copy()
-        
-        default_start = df_draw['DATE'].iloc[-125] if len(df_draw) > 125 else df_draw['DATE'].iloc[0]
-        default_end = df_draw['DATE'].iloc[-1]
-        
-        fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        
-        # 1. Vẽ đường giá VNINDEX
-        fig_market.add_trace(go.Scatter(x=df_draw['DATE'], y=df_draw['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
-        
-        if 'VOLUME' in df_draw.columns:
-            fig_market.add_trace(go.Bar(x=df_draw['DATE'], y=df_draw['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+    try:
+        if not df_vni.empty and 'DATE' in df_vni.columns and 'CLOSE' in df_vni.columns:
+            df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
+            df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
             
-        # 2. Định nghĩa màu sắc trực tiếp từ cột FLOW của Master DB
-        color_map = {
-            "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
-            "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},
-            "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'},
-            "🚨 Xả hàng / Bán tháo": {'col': '#ff9100', 'sym': 'triangle-down'}
-        }
-        
-        # Tạo Legend giả cho đủ chú thích phía trên chart
-        for name, cfg in color_map.items():
-            fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=10), name=name), secondary_y=False)
-        
-        # 3. Vẽ vạch dọc và điểm uốn trực tiếp từ dữ liệu đã đồng bộ (Nhanh như chớp)
-        if 'FLOW' in df_draw.columns:
-            for state_name, cfg in color_map.items():
-                df_sub = df_draw[df_draw['FLOW'] == state_name]
-                if not df_sub.empty:
-                    for _, row in df_sub.iterrows():
-                        d = row['DATE']
-                        p = row['CLOSE']
-                        fig_market.add_vline(x=d, line_width=1.5, line_color=cfg['col'], opacity=0.4)
-                        fig_market.add_trace(go.Scatter(x=[d], y=[p], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
+            # 🚀 CẮT LÁT DỮ LIỆU: Chỉ lấy 300 phiên (hơn 1 năm) để vẽ đồ họa mượt mà, CHỐNG TREO 100%
+            df_draw = df_vni.tail(300).copy()
+            
+            default_start = df_draw['DATE'].iloc[-125] if len(df_draw) > 125 else df_draw['DATE'].iloc[0]
+            default_end = df_draw['DATE'].iloc[-1]
+            
+            fig_market = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            # 1. Vẽ đường giá VNINDEX
+            fig_market.add_trace(go.Scatter(x=df_draw['DATE'], y=df_draw['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+            
+            if 'VOLUME' in df_draw.columns:
+                fig_market.add_trace(go.Bar(x=df_draw['DATE'], y=df_draw['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+                
+            # 2. ĐÚNG 5 TRẠNG THÁI CHUẨN BAN ĐẦU (Giao diện nguyên thủy của anh)
+            color_map = {
+                'Đáy Mạnh (Climax)': {'col': '#00e676', 'sym': 'triangle-up'},
+                'Đáy Cạn Cung':      {'col': '#00b0ff', 'sym': 'triangle-up'},
+                'Đáy Yếu':           {'col': '#eab308', 'sym': 'triangle-up'},
+                'Đỉnh Phân Phối':    {'col': '#ff1744', 'sym': 'triangle-down'},
+                'Đỉnh Rớn':          {'col': '#ff9100', 'sym': 'triangle-down'}
+            }
+            
+            # Tạo Legend giả cho đủ 5 màu chú thích phía trên
+            for name, cfg in color_map.items():
+                fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
+            
+            # 3. QUÉT TRỰC TIẾP TỪ MASTER DB: Dùng cột FLOW do AI Tầng 1 đã nạp, KHÔNG cần file CSV ngoài
+            if 'FLOW' in df_draw.columns:
+                for _, row in df_draw.iterrows():
+                    raw_flow = str(row['FLOW'])
+                    
+                    # Chuyển đổi nhãn mới của AI về 5 nhãn gốc chuẩn giao diện
+                    cat = None
+                    if "Đẩy giá" in raw_flow: cat = 'Đáy Mạnh (Climax)'
+                    elif "Gom hàng" in raw_flow: cat = 'Đáy Cạn Cung'
+                    elif "Phân Phối" in raw_flow: cat = 'Đỉnh Phân Phối'
+                    elif "Xả hàng" in raw_flow: cat = 'Đỉnh Rớn'
+                    # Nhãn "Giằng co" (Đi ngang) sẽ tự động bị bỏ qua, không vẽ vạch
+                    
+                    if cat in color_map:
+                        cfg = color_map[cat]
+                        date_val = row['DATE']
+                        price_val = row['CLOSE']
+                        
+                        # Vẽ vạch dọc và điểm uốn
+                        fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
+                        fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
 
-        # 4. Cấu hình giao diện và thanh Timeline
-        fig_market.update_layout(
-            paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
-            height=500, margin=dict(l=10, r=10, t=10, b=10), 
-            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
-        )
-        
-        fig_market.update_xaxes(
-            showgrid=False, zeroline=False,
-            range=[default_start, default_end],
-            rangeslider=dict(visible=True, thickness=0.06, bgcolor="#1f2937"),
-            type="date"
-        )
-        fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
-        fig_market.update_yaxes(showgrid=False, secondary_y=True)
-        st.plotly_chart(fig_market, use_container_width=True)
-        
-        # ACTIVE FLOW
-        st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
-        if 'ACTIVE_BUY_RATIO' in df_vni.columns:
-            df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
-            df_vni['Real_Active_Sell'] = 100 - df_vni['ACTIVE_BUY_RATIO']
-            df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
-            df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
-            df_flow_data = df_vni.tail(150)
-            
-            fig_flow = go.Figure()
-            fig_flow.add_trace(go.Bar(x=df_flow_data['DATE'], y=df_flow_data['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
-            fig_flow.add_trace(go.Bar(x=df_flow_data['DATE'], y=df_flow_data['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
-            fig_flow.add_trace(go.Scatter(x=df_flow_data['DATE'], y=df_flow_data['Buy_MA'], mode='lines', line=dict(color='#10b981', width=2), name='Trend Mua (MA10)'))
-            fig_flow.add_trace(go.Scatter(x=df_flow_data['DATE'], y=df_flow_data['Sell_MA'], mode='lines', line=dict(color='#ef4444', width=2), name='Trend Bán (MA10)'))
-            
-            fig_flow.update_layout(
-                barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
-                height=260, margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
-                hovermode="x unified"
+            # 4. Cấu hình giao diện chuẩn form kèm thanh Timeline
+            fig_market.update_layout(
+                paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
+                height=500, margin=dict(l=10, r=10, t=10, b=10), 
+                legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
             )
-            fig_flow.update_xaxes(showgrid=False, zeroline=False)
-            fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
-            st.plotly_chart(fig_flow, use_container_width=True)
+            
+            fig_market.update_xaxes(
+                showgrid=False, zeroline=False,
+                range=[default_start, default_end],
+                rangeslider=dict(visible=True, thickness=0.06, bgcolor="#1f2937"),
+                type="date"
+            )
+            fig_market.update_yaxes(showgrid=True, gridcolor='#1f2937', secondary_y=False)
+            fig_market.update_yaxes(showgrid=False, secondary_y=True)
+            st.plotly_chart(fig_market, use_container_width=True)
+            
+            # ACTIVE FLOW (XUNG LỰC DÒNG TIỀN)
+            st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
+            if 'ACTIVE_BUY_RATIO' in df_vni.columns:
+                df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
+                df_vni['Real_Active_Sell'] = 100 - df_vni['ACTIVE_BUY_RATIO']
+                df_vni['Buy_MA'] = df_vni['Real_Active_Buy'].rolling(10).mean()
+                df_vni['Sell_MA'] = df_vni['Real_Active_Sell'].rolling(10).mean()
+                df_flow_data = df_vni.tail(150)
+                
+                fig_flow = go.Figure()
+                fig_flow.add_trace(go.Bar(x=df_flow_data['DATE'], y=df_flow_data['Real_Active_Buy'], marker_color='rgba(16, 185, 129, 0.5)', name='Lực Mua (Phiên)', marker_line_width=0))
+                fig_flow.add_trace(go.Bar(x=df_flow_data['DATE'], y=df_flow_data['Real_Active_Sell'], marker_color='rgba(239, 68, 68, 0.5)', name='Lực Bán (Phiên)', marker_line_width=0))
+                fig_flow.add_trace(go.Scatter(x=df_flow_data['DATE'], y=df_flow_data['Buy_MA'], mode='lines', line=dict(color='#10b981', width=2), name='Trend Mua (MA10)'))
+                fig_flow.add_trace(go.Scatter(x=df_flow_data['DATE'], y=df_flow_data['Sell_MA'], mode='lines', line=dict(color='#ef4444', width=2), name='Trend Bán (MA10)'))
+                
+                fig_flow.update_layout(
+                    barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#9ca3af', size=11),
+                    height=260, margin=dict(l=10, r=10, t=10, b=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#d1d5db", size=11)),
+                    hovermode="x unified"
+                )
+                fig_flow.update_xaxes(showgrid=False, zeroline=False)
+                fig_flow.update_yaxes(showgrid=True, gridcolor='#1f2937', zeroline=False, range=[0, 100])
+                st.plotly_chart(fig_flow, use_container_width=True)
+            else:
+                st.info("Không có dữ liệu Dòng tiền (Active Buy/Sell) trong Database hiện tại.")
         else:
-            st.info("Không có dữ liệu Dòng tiền (Active Buy/Sell) trong Database hiện tại.")
-    else:
-        st.warning("Đang đồng bộ dữ liệu VNINDEX...")
+            st.warning("Đang đồng bộ dữ liệu VNINDEX...")
+    except Exception as e:
+        st.error(f"⚠️ Lỗi hiển thị Khu vực 1: {e}")
 with c2:
     vni_latest_close, vni_latest_date = "N/A", "N/A"
     prob_bottom, prob_top = 0.0, 0.0
