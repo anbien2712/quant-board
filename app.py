@@ -74,25 +74,23 @@ with c1:
         if 'VOLUME' in df_vni.columns:
             fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
-# 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG (ĐÃ CẬP NHẬT THEO AI TẦNG 1 MỚI)
+        # 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG (ĐÃ CẬP NHẬT THEO AI TẦNG 1 MỚI)
         color_map = {
             "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},     # Xanh Neon
             "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},     # Xanh Cyan
-            "⏳ Giằng co / Tích lũy":      {'col': 'rgba(0,0,0,0)', 'sym': 'circle'},    # Ẩn đi cho đỡ rối Chart
+            "⏳ Giằng co / Tích lũy":      {'col': 'rgba(0,0,0,0)', 'sym': 'circle'},    # Ẩn
             "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'}, # Đỏ Neon
             "🚨 Xả hàng / Bán tháo":       {'col': '#ff9100', 'sym': 'triangle-down'}    # Cam sáng
         }
         
-        # Khởi tạo Legend giả để luôn hiển thị đủ màu chú thích (Bỏ qua pha Giằng co)
+        # Khởi tạo Legend giả để luôn hiển thị đủ màu chú thích
         for name, cfg in color_map.items():
             if "Giằng co" not in name:
                 fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
         
-        # 🚀 ĐỌC TRỰC TIẾP TỪ CỘT 'FLOW' CỦA SIÊU ĐỘNG CƠ (Không cần đọc CSV phụ nữa)
+        # 🚀 ĐỌC TRỰC TIẾP TỪ CỘT 'FLOW' CỦA SIÊU ĐỘNG CƠ (Không đọc CSV nữa)
         for _, row in df_vni.iterrows():
             flow_state = str(row.get('FLOW', ''))
-            
-            # Chỉ vẽ Marker khi thị trường có biến (Bỏ qua pha Giằng co đi ngang)
             if flow_state in color_map and "Giằng co" not in flow_state:
                 cfg = color_map[flow_state]
                 date_val = row['DATE']
@@ -102,8 +100,6 @@ with c1:
                 fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
                 # Hình tam giác chốt chặn trên đường giá
                 fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
-                except Exception: pass
-                break
 
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
