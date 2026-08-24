@@ -64,14 +64,18 @@ with c1:
         df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
         df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
         
-        default_start = df_vni['DATE'].iloc[-250] if len(df_vni) > 250 else df_vni['DATE'].iloc[0]
-        default_end = df_vni['DATE'].iloc[-1]
+        # 🚀 GIẢM TẢI ĐỒ HỌA: Cắt lấy 500 phiên (2 năm) để vẽ Chart nhẹ như lông hồng
+        df_draw = df_vni.tail(500).copy()
+        
+        # Mặc định thanh trượt hiển thị 6 tháng (125 phiên) để nhìn rõ nến, có thể kéo dài ra 2 năm
+        default_start = df_draw['DATE'].iloc[-125] if len(df_draw) > 125 else df_draw['DATE'].iloc[0]
+        default_end = df_draw['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        fig_market.add_trace(go.Scatter(x=df_draw['DATE'], y=df_draw['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
-        if 'VOLUME' in df_vni.columns:
-            fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+        if 'VOLUME' in df_draw.columns:
+            fig_market.add_trace(go.Bar(x=df_draw['DATE'], y=df_draw['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
         color_map = {
             "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
@@ -80,12 +84,15 @@ with c1:
             "🚨 Xả hàng / Bán tháo": {'col': '#ff9100', 'sym': 'triangle-down'}
         }
         
-        # 🚀 THỦ THUẬT SIÊU TỐC: GOM NHÓM ĐIỂM UỐN TRƯỚC KHI VẼ
+        # Vẽ Legend giả (Chú thích)
+        for name, cfg in color_map.items():
+            fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
+        
+        # Quét và vẽ Mũi tên + Vạch Dọc trên tệp dữ liệu df_draw (chỉ 500 dòng -> siêu nhẹ)
         shapes = []
         for state_name, cfg in color_map.items():
-            df_state = df_vni[df_vni['FLOW'] == state_name]
+            df_state = df_draw[df_draw['FLOW'] == state_name]
             if not df_state.empty:
-                # 1. Vẽ TẤT CẢ các Mũi tên (Marker) của trạng thái này trong 1 layer duy nhất
                 fig_market.add_trace(
                     go.Scatter(
                         x=df_state['DATE'], 
@@ -93,19 +100,18 @@ with c1:
                         mode='markers', 
                         marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), 
                         name=state_name,
-                        showlegend=True
+                        showlegend=False # Đã có Legend giả ở trên nên tắt ở đây
                     ), 
                     secondary_y=False
                 )
                 
-                # 2. Gom TẤT CẢ các Vạch Dọc (Vertical Lines) vào chung một mảng Shapes
                 for date_val in df_state['DATE']:
                     shapes.append(dict(
                         type="line", x0=date_val, x1=date_val, y0=0, y1=1, xref="x", yref="paper",
                         line=dict(color=cfg['col'], width=1.5), opacity=0.4
                     ))
 
-        # Áp dụng toàn bộ Vạch Dọc lên biểu đồ bằng 1 lệnh duy nhất
+        # Nạp mảng vạch kẻ vào Layout
         fig_market.update_layout(shapes=shapes)
 
         # Cấu hình giao diện biểu đồ
@@ -125,7 +131,7 @@ with c1:
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_market, use_container_width=True)
         
-        # ACTIVE FLOW
+        # ACTIVE FLOW (Phần này anh giữ nguyên 150 phiên là quá chuẩn rồi)
         st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
         if 'ACTIVE_BUY_RATIO' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
