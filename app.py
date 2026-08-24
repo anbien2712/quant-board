@@ -64,74 +64,42 @@ with c1:
         df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
         df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
         
-        default_start = df_vni['DATE'].iloc[-250] if len(df_vni) > 250 else df_vni['DATE'].iloc[0]
-        default_end = df_vni['DATE'].iloc[-1]
+        # Cắt lấy 500 phiên gần nhất để hiển thị mượt mà, chống treo app 100%
+        df_draw = df_vni.tail(500).copy()
+        
+        default_start = df_draw['DATE'].iloc[-125] if len(df_draw) > 125 else df_draw['DATE'].iloc[0]
+        default_end = df_draw['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
         
         # 1. Vẽ đường giá VNINDEX
-        fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        fig_market.add_trace(go.Scatter(x=df_draw['DATE'], y=df_draw['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
-        if 'VOLUME' in df_vni.columns:
-            fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+        if 'VOLUME' in df_draw.columns:
+            fig_market.add_trace(go.Bar(x=df_draw['DATE'], y=df_draw['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
-        # 2. ĐÚNG 5 TRẠNG THÁI CHUẨN BAN ĐẦU
+        # 2. Định nghĩa màu sắc trực tiếp từ cột FLOW của Master DB
         color_map = {
-            'Đáy Mạnh (Climax)': {'col': '#00e676', 'sym': 'triangle-up'},
-            'Đáy Cạn Cung':      {'col': '#00b0ff', 'sym': 'triangle-up'},
-            'Đáy Yếu':           {'col': '#eab308', 'sym': 'triangle-up'},
-            'Đỉnh Phân Phối':    {'col': '#ff1744', 'sym': 'triangle-down'},
-            'Đỉnh Rớn':          {'col': '#ff9100', 'sym': 'triangle-down'}
+            "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
+            "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},
+            "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'},
+            "🚨 Xả hàng / Bán tháo": {'col': '#ff9100', 'sym': 'triangle-down'}
         }
         
-        # Tạo Legend giả
+        # Tạo Legend giả cho đủ chú thích phía trên chart
         for name, cfg in color_map.items():
-            fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
+            fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=10), name=name), secondary_y=False)
         
-        # 3. DÙNG PANDAS MERGE (VECTORIZED JOIN) ĐỂ SIÊU TỐC, TUYỆT ĐỐI KHÔNG TREO APP
-        inf_files = ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']
-        plotted = False
-        for fname in inf_files:
-            if os.path.exists(fname):
-                try:
-                    df_inf = pd.read_csv(fname)
-                    df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
-                    
-                    # Merge trực tiếp toàn bộ dữ liệu thay vì dùng vòng lặp tìm kiếm từng dòng
-                    merged = pd.merge(df_vni, df_inf, left_on='DATE', right_on='Ngày', how='inner')
-                    
-                    for _, row in merged.iterrows():
-                        date_val = row['DATE']
-                        price_val = row['CLOSE']
-                        raw_sig = str(row.get('Tín Hiệu', '')).upper()
-                        raw_vung = str(row.get('Vùng', '')).upper()
-                        
-                        if 'CLIMAX' in raw_sig or 'BÙNG NỔ' in raw_sig: cat = 'Đáy Mạnh (Climax)'
-                        elif 'CẠN CUNG' in raw_sig: cat = 'Đáy Cạn Cung'
-                        elif 'YẾU' in raw_sig: cat = 'Đáy Yếu'
-                        elif 'PHÂN PHỐI' in raw_sig or 'BUYING CLIMAX' in raw_sig: cat = 'Đỉnh Phân Phối'
-                        elif 'RỚN' in raw_sig: cat = 'Đỉnh Rớn'
-                        else: cat = 'Đáy Mạnh (Climax)' if 'ĐÁY' in raw_vung else 'Đỉnh Phân Phối'
-
-                        if cat in color_map:
-                            cfg = color_map[cat]
-                            fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
-                            fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
-                    plotted = True
-                    break
-                except Exception: pass
-        
-        # Fallback nếu không thấy file CSV phụ
-        if not plotted and 'FLOW' in df_vni.columns:
-            for _, row in df_vni.iterrows():
-                f = str(row['FLOW'])
-                if "Đẩy giá" in f or "Gom hàng" in f: cat = 'Đáy Mạnh (Climax)'
-                elif "Phân Phối" in f: cat = 'Đỉnh Phân Phối'
-                else: continue
-                
-                cfg = color_map.get(cat, color_map['Đáy Mạnh (Climax)'])
-                fig_market.add_vline(x=row['DATE'], line_width=1.5, line_color=cfg['col'], opacity=0.4)
-                fig_market.add_trace(go.Scatter(x=[row['DATE']], y=[row['CLOSE']], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
+        # 3. Vẽ vạch dọc và điểm uốn trực tiếp từ dữ liệu đã đồng bộ (Nhanh như chớp)
+        if 'FLOW' in df_draw.columns:
+            for state_name, cfg in color_map.items():
+                df_sub = df_draw[df_draw['FLOW'] == state_name]
+                if not df_sub.empty:
+                    for _, row in df_sub.iterrows():
+                        d = row['DATE']
+                        p = row['CLOSE']
+                        fig_market.add_vline(x=d, line_width=1.5, line_color=cfg['col'], opacity=0.4)
+                        fig_market.add_trace(go.Scatter(x=[d], y=[p], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
 
         # 4. Cấu hình giao diện và thanh Timeline
         fig_market.update_layout(
@@ -150,7 +118,7 @@ with c1:
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_market, use_container_width=True)
         
-        # ACTIVE FLOW SẠCH SẼ
+        # ACTIVE FLOW
         st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
         if 'ACTIVE_BUY_RATIO' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
