@@ -88,21 +88,21 @@ with c1:
         for name, cfg in color_map.items():
             fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
         
-        # 3. QUÉT FILE ĐIỂM UỐN GỐC AN TOÀN TUYỆT ĐỐI
+        # 3. DÙNG PANDAS MERGE (VECTORIZED JOIN) ĐỂ SIÊU TỐC, TUYỆT ĐỐI KHÔNG TREO APP
         inf_files = ['Savitzky_Golay_10_Years_Full.csv', 'Savitzky_Golay_10_Years_Full (1).csv']
-        plotted_markers = False
+        plotted = False
         for fname in inf_files:
             if os.path.exists(fname):
                 try:
                     df_inf = pd.read_csv(fname)
                     df_inf['Ngày'] = pd.to_datetime(df_inf['Ngày'])
                     
-                    for _, row in df_inf.iterrows():
-                        date_val = row['Ngày']
-                        match = df_vni[df_vni['DATE'] == date_val]
-                        if match.empty: continue
-                        price_val = match['CLOSE'].values[0]
-                        
+                    # Merge trực tiếp toàn bộ dữ liệu thay vì dùng vòng lặp tìm kiếm từng dòng
+                    merged = pd.merge(df_vni, df_inf, left_on='DATE', right_on='Ngày', how='inner')
+                    
+                    for _, row in merged.iterrows():
+                        date_val = row['DATE']
+                        price_val = row['CLOSE']
                         raw_sig = str(row.get('Tín Hiệu', '')).upper()
                         raw_vung = str(row.get('Vùng', '')).upper()
                         
@@ -117,9 +117,21 @@ with c1:
                             cfg = color_map[cat]
                             fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
                             fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
-                    plotted_markers = True
+                    plotted = True
+                    break
                 except Exception: pass
-                break
+        
+        # Fallback nếu không thấy file CSV phụ
+        if not plotted and 'FLOW' in df_vni.columns:
+            for _, row in df_vni.iterrows():
+                f = str(row['FLOW'])
+                if "Đẩy giá" in f or "Gom hàng" in f: cat = 'Đáy Mạnh (Climax)'
+                elif "Phân Phối" in f: cat = 'Đỉnh Phân Phối'
+                else: continue
+                
+                cfg = color_map.get(cat, color_map['Đáy Mạnh (Climax)'])
+                fig_market.add_vline(x=row['DATE'], line_width=1.5, line_color=cfg['col'], opacity=0.4)
+                fig_market.add_trace(go.Scatter(x=[row['DATE']], y=[row['CLOSE']], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
 
         # 4. Cấu hình giao diện và thanh Timeline
         fig_market.update_layout(
