@@ -64,19 +64,19 @@ with c1:
         df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
         df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
         
-        # 🚀 GIẢM TẢI ĐỒ HỌA: Cắt lấy 500 phiên (2 năm) để vẽ Chart nhẹ như lông hồng
-        df_draw = df_vni.tail(500).copy()
-        
-        # Mặc định thanh trượt hiển thị 6 tháng (125 phiên) để nhìn rõ nến, có thể kéo dài ra 2 năm
-        default_start = df_draw['DATE'].iloc[-125] if len(df_draw) > 125 else df_draw['DATE'].iloc[0]
-        default_end = df_draw['DATE'].iloc[-1]
+        # Mặc định thanh trượt hiển thị 250 phiên gần nhất cho gọn gàng, anh có thể kéo ra xem toàn bộ 10 năm
+        default_start = df_vni['DATE'].iloc[-250] if len(df_vni) > 250 else df_vni['DATE'].iloc[0]
+        default_end = df_vni['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_market.add_trace(go.Scatter(x=df_draw['DATE'], y=df_draw['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
-        if 'VOLUME' in df_draw.columns:
-            fig_market.add_trace(go.Bar(x=df_draw['DATE'], y=df_draw['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
+        # 1. Vẽ đường giá VNINDEX (Toàn bộ lịch sử để thanh timeline có cái mà kéo)
+        fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
+        
+        if 'VOLUME' in df_vni.columns:
+            fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
+        # 2. Bảng màu chuẩn theo đúng ý nghĩa các trạng thái
         color_map = {
             "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
             "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},
@@ -84,43 +84,31 @@ with c1:
             "🚨 Xả hàng / Bán tháo": {'col': '#ff9100', 'sym': 'triangle-down'}
         }
         
-        # Vẽ Legend giả (Chú thích)
+        # Tạo Legend giả cho đủ màu trên chú thích
         for name, cfg in color_map.items():
             fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
         
-        # Quét và vẽ Mũi tên + Vạch Dọc trên tệp dữ liệu df_draw (chỉ 500 dòng -> siêu nhẹ)
-        shapes = []
-        for state_name, cfg in color_map.items():
-            df_state = df_draw[df_draw['FLOW'] == state_name]
-            if not df_state.empty:
-                fig_market.add_trace(
-                    go.Scatter(
-                        x=df_state['DATE'], 
-                        y=df_state['CLOSE'], 
-                        mode='markers', 
-                        marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), 
-                        name=state_name,
-                        showlegend=False # Đã có Legend giả ở trên nên tắt ở đây
-                    ), 
-                    secondary_y=False
-                )
+        # 3. Dùng chính xác hàm add_vline và add_trace để vẽ điểm uốn nguyên bản y như ảnh mẫu của anh
+        for _, row in df_vni.iterrows():
+            flow_state = str(row.get('FLOW', ''))
+            if flow_state in color_map:
+                cfg = color_map[flow_state]
+                date_val = row['DATE']
+                price_val = row['CLOSE']
                 
-                for date_val in df_state['DATE']:
-                    shapes.append(dict(
-                        type="line", x0=date_val, x1=date_val, y0=0, y1=1, xref="x", yref="paper",
-                        line=dict(color=cfg['col'], width=1.5), opacity=0.4
-                    ))
+                # Vạch kẻ dọc mờ xuyên suốt
+                fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
+                # Tam giác điểm uốn bám trên đường giá
+                fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
 
-        # Nạp mảng vạch kẻ vào Layout
-        fig_market.update_layout(shapes=shapes)
-
-        # Cấu hình giao diện biểu đồ
+        # 4. Cấu hình giao diện và THANH TIMELINE (RANGE SLIDER) ở dưới
         fig_market.update_layout(
             paper_bgcolor='#151a23', plot_bgcolor='#151a23', font=dict(color='#9ca3af'), 
             height=500, margin=dict(l=10, r=10, t=10, b=10), 
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
         )
         
+        # Thanh trượt thời gian kinh điển giúp anh kéo xem bất kỳ giai đoạn nào trong 10 năm
         fig_market.update_xaxes(
             showgrid=False, zeroline=False,
             range=[default_start, default_end],
@@ -131,7 +119,7 @@ with c1:
         fig_market.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_market, use_container_width=True)
         
-        # ACTIVE FLOW (Phần này anh giữ nguyên 150 phiên là quá chuẩn rồi)
+        # ACTIVE FLOW (Xung lực dòng tiền)
         st.markdown("<div class='box-title' style='margin-top: 10px; font-size: 14px;'>⚖️ Xung Lực Dòng Tiền Chủ Động (Active Buy vs Active Sell)</div>", unsafe_allow_html=True)
         if 'ACTIVE_BUY_RATIO' in df_vni.columns:
             df_vni['Real_Active_Buy'] = df_vni['ACTIVE_BUY_RATIO']
