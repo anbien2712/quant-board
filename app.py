@@ -64,46 +64,49 @@ with c1:
         df_vni['DATE'] = pd.to_datetime(df_vni['DATE'], errors='coerce')
         df_vni = df_vni.sort_values(by='DATE').dropna(subset=['DATE'])
         
-        # Lấy ngày để làm mặc định cho slider (250 phiên)
         default_start = df_vni['DATE'].iloc[-250] if len(df_vni) > 250 else df_vni['DATE'].iloc[0]
         default_end = df_vni['DATE'].iloc[-1]
         
         fig_market = make_subplots(specs=[[{"secondary_y": True}]])
-        # Vẫn vẽ đường giá VNINDEX cho toàn bộ 10 năm
         fig_market.add_trace(go.Scatter(x=df_vni['DATE'], y=df_vni['CLOSE'], name='VNINDEX', line=dict(color='#3b82f6', width=2.5)), secondary_y=False)
         
         if 'VOLUME' in df_vni.columns:
             fig_market.add_trace(go.Bar(x=df_vni['DATE'], y=df_vni['VOLUME'], name='Khối lượng', marker_color='rgba(16, 185, 129, 0.2)'), secondary_y=True)
             
-        # 🎨 BẢNG MÀU ĐIỂM UỐN TÁCH BIỆT RÕ RÀNG
         color_map = {
             "✅ Đáy Cạn Cung (Gom hàng)": {'col': '#00e676', 'sym': 'triangle-up'},
             "🔥 Nổ Thanh Khoản (Đẩy giá)": {'col': '#00b0ff', 'sym': 'triangle-up'},
-            "⏳ Giằng co / Tích lũy":      {'col': 'rgba(0,0,0,0)', 'sym': 'circle'},
             "🩸 Đỉnh Phân Phối / Bull Trap": {'col': '#ff1744', 'sym': 'triangle-down'},
-            "🚨 Xả hàng / Bán tháo":       {'col': '#ff9100', 'sym': 'triangle-down'}
+            "🚨 Xả hàng / Bán tháo": {'col': '#ff9100', 'sym': 'triangle-down'}
         }
         
-        # Khởi tạo Legend giả
-        for name, cfg in color_map.items():
-            if "Giằng co" not in name:
-                fig_market.add_trace(go.Scatter(x=[None], y=[None], mode='lines+markers', line=dict(color=cfg['col'], width=2), marker=dict(symbol=cfg['sym'], size=10), name=name), secondary_y=False)
-        
-        # 🚀 THỦ THUẬT CHỐNG TREO APP: Chỉ vẽ Marker & Vạch dọc cho 300 phiên gần nhất
-        df_draw = df_vni.tail(300) 
-        
-        for _, row in df_draw.iterrows():
-            flow_state = str(row.get('FLOW', ''))
-            
-            if flow_state in color_map and "Giằng co" not in flow_state:
-                cfg = color_map[flow_state]
-                date_val = row['DATE']
-                price_val = row['CLOSE']
+        # 🚀 THỦ THUẬT SIÊU TỐC: GOM NHÓM ĐIỂM UỐN TRƯỚC KHI VẼ
+        shapes = []
+        for state_name, cfg in color_map.items():
+            df_state = df_vni[df_vni['FLOW'] == state_name]
+            if not df_state.empty:
+                # 1. Vẽ TẤT CẢ các Mũi tên (Marker) của trạng thái này trong 1 layer duy nhất
+                fig_market.add_trace(
+                    go.Scatter(
+                        x=df_state['DATE'], 
+                        y=df_state['CLOSE'], 
+                        mode='markers', 
+                        marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), 
+                        name=state_name,
+                        showlegend=True
+                    ), 
+                    secondary_y=False
+                )
                 
-                # Vẽ lại Vạch đứng (Vertical Line) mờ y như bản gốc của anh
-                fig_market.add_vline(x=date_val, line_width=1.5, line_color=cfg['col'], opacity=0.4)
-                # Vẽ từng Marker
-                fig_market.add_trace(go.Scatter(x=[date_val], y=[price_val], mode='markers', marker=dict(symbol=cfg['sym'], color=cfg['col'], size=12), showlegend=False, hoverinfo='skip'), secondary_y=False)
+                # 2. Gom TẤT CẢ các Vạch Dọc (Vertical Lines) vào chung một mảng Shapes
+                for date_val in df_state['DATE']:
+                    shapes.append(dict(
+                        type="line", x0=date_val, x1=date_val, y0=0, y1=1, xref="x", yref="paper",
+                        line=dict(color=cfg['col'], width=1.5), opacity=0.4
+                    ))
+
+        # Áp dụng toàn bộ Vạch Dọc lên biểu đồ bằng 1 lệnh duy nhất
+        fig_market.update_layout(shapes=shapes)
 
         # Cấu hình giao diện biểu đồ
         fig_market.update_layout(
@@ -112,7 +115,6 @@ with c1:
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5, font=dict(color="white", size=11))
         )
         
-        # TÍCH HỢP THANH TRƯỢT THỜI GIAN
         fig_market.update_xaxes(
             showgrid=False, zeroline=False,
             range=[default_start, default_end],
