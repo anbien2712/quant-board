@@ -108,6 +108,15 @@ def load_and_process_data():
     avg_s = v_spike.rolling(20).mean()
     df_ai['F3'] = np.select([(s_gt >= 3) & (v_spike > 1.2), (avg_s > 1.1) & (s_gt >= 1), (s_lt >= 10) & (avg_s < 0.8), (avg_s < 0.9)], [2, 1, -2, -1], default=0)
 
+    # ---> CHÈN THÊM 6 DÒNG NÀY VÀO ĐÂY <---
+    timeframes = [1, 3, 5, 7, 30, 60]
+    for n in timeframes:
+        roll_high = df_ai['HIGH'].rolling(window=n, min_periods=1).max()
+        roll_low = df_ai['LOW'].rolling(window=n, min_periods=1).min()
+        df_ai[f'HL_{n}D'] = (roll_high - roll_low) / (df_ai['CLOSE'] + 1e-9) * 100
+    brk = df_ai['HL_5D'] / (df_ai['HL_60D'] + 1e-9)
+    # --------------------------------------
+
     cr = (df_ai['HIGH'] - df_ai['LOW']) + 1e-9
     u_wick = (df_ai['HIGH'] - df_ai[['OPEN', 'CLOSE']].max(axis=1)) / cr
     l_wick = (df_ai[['OPEN', 'CLOSE']].min(axis=1) - df_ai['LOW']) / cr
