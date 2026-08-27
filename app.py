@@ -2,21 +2,51 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.patches as mpatches
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, find_peaks
 import datetime
 import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # =================================================================================
-# CẤU HÌNH TRANG WEB
-# =================================================================================
-st.set_page_config(page_title="E.V Quant Terminal", layout="wide")
-st.title("🧠 E.V QUANT TERMINAL (BẢN GỐC TỪ TÁC GIẢ)")
+# CẤU HÌNH TRANG WEB & CUSTOM CSS (GIAO DIỆN FINTECH)
+# ==========================================
+st.set_page_config(page_title="Finaura Quant Terminal", layout="wide", initial_sidebar_state="collapsed")
+
+# Custom CSS ép giao diện giống phong cách Fintech (Nền tối, Xanh Neon)
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #121212;
+        color: #FFFFFF;
+    }
+    /* Chỉnh màu chữ của các tab */
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 18px;
+        font-weight: 600;
+        color: #A0A0A0;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        border-bottom-color: #CCFF00 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] [data-testid="stMarkdownContainer"] p {
+        color: #CCFF00 !important;
+    }
+    /* Các thẻ Card */
+    div[data-testid="metric-container"] {
+        background-color: #1E1E1E;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #333333;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("⚡ FINAURA QUANT TERMINAL")
+st.markdown("<p style='color: #A0A0A0; font-size: 16px;'>Hệ thống Phân tích Vĩ mô VNINDEX: Wyckoff 5 Phases | Order Flow X-Ray | Dynamic Regime</p>", unsafe_allow_html=True)
 
 # =================================================================================
-# HÀM TẢI & XỬ LÝ DỮ LIỆU (GIỮ NGUYÊN 100% LOGIC V8.0 VÀ V10.0 CỦA BẠN)
+# HÀM TẢI & XỬ LÝ DỮ LIỆU (GIỮ NGUYÊN 100% LOGIC GỐC CỦA BẠN)
 # =================================================================================
 @st.cache_data(ttl=3600)
 def load_and_process_data():
@@ -41,7 +71,7 @@ def load_and_process_data():
         df_vni = pd.DataFrame()
 
     # 2. XỬ LÝ FILE ORDER FLOW
-    file_path = "data/MuaBanChuDong_Explore.csv.gz"
+    file_path = "data/MuaBanChuDong_Explore.csv"
     if os.path.exists(file_path):
         df_of = pd.read_csv(file_path)
         df_of['Ngay'] = pd.to_datetime(df_of['Ngay'])
@@ -49,11 +79,10 @@ def load_and_process_data():
         df_market_of['NetRatio_Market'] = (df_market_of['Net'] / df_market_of['Tong']) * 100
         df_ai = pd.merge(df_vni, df_market_of, left_on='DATE', right_on='Ngay', how='inner')
     else:
-        st.warning(f"⚠️ Không tìm thấy file {file_path}. Vui lòng upload lên GitHub.")
         df_ai = df_vni.copy()
         df_ai['Net'] = 0
 
-    # --- 9 ĐẶC TRƯNG VECTOR (GIỮ NGUYÊN CÔNG THỨC) ---
+    # --- 9 ĐẶC TRƯNG VECTOR ---
     df_ai['R1'] = df_ai['CLOSE'].pct_change(1) * 100
     df_ai['R3'] = df_ai['CLOSE'].pct_change(3) * 100
     df_ai['R5'] = df_ai['CLOSE'].pct_change(5) * 100
@@ -61,8 +90,7 @@ def load_and_process_data():
     z_ret = (w_ret - w_ret.rolling(20).mean()) / (w_ret.rolling(20).std() + 1e-9)
     df_ai['F1'] = np.select([z_ret > 1.5, z_ret.between(0.5, 1.5), z_ret < -1.5, z_ret.between(-1.5, -0.5)], [2, 1, -2, -1], default=0)
 
-    for m in [10, 20, 50, 100]:
-        df_ai[f'MA{m}'] = df_ai['CLOSE'].rolling(m).mean()
+    for m in [10, 20, 50, 100]: df_ai[f'MA{m}'] = df_ai['CLOSE'].rolling(m).mean()
     d10 = (df_ai['CLOSE'] - df_ai['MA10']) / df_ai['MA10'] * 100
     d20 = (df_ai['CLOSE'] - df_ai['MA20']) / df_ai['MA20'] * 100
     d50 = (df_ai['CLOSE'] - df_ai['MA50']) / df_ai['MA50'] * 100
@@ -79,15 +107,6 @@ def load_and_process_data():
     s_lt = (v_spike < 0.8).rolling(20).sum()
     avg_s = v_spike.rolling(20).mean()
     df_ai['F3'] = np.select([(s_gt >= 3) & (v_spike > 1.2), (avg_s > 1.1) & (s_gt >= 1), (s_lt >= 10) & (avg_s < 0.8), (avg_s < 0.9)], [2, 1, -2, -1], default=0)
-    
-    # ---> ĐOẠN ANH CẦN CHÈN VÀO LÀ TỪ ĐÂY...
-    timeframes = [1, 3, 5, 7, 30, 60]
-    for n in timeframes:
-        roll_high = df_ai['HIGH'].rolling(window=n, min_periods=1).max()
-        roll_low = df_ai['LOW'].rolling(window=n, min_periods=1).min()
-        df_ai[f'HL_{n}D'] = (roll_high - roll_low) / (df_ai['CLOSE'] + 1e-9) * 100
-    brk = df_ai['HL_5D'] / (df_ai['HL_60D'] + 1e-9)
-    # ... ĐẾN ĐÂY <---
 
     cr = (df_ai['HIGH'] - df_ai['LOW']) + 1e-9
     u_wick = (df_ai['HIGH'] - df_ai[['OPEN', 'CLOSE']].max(axis=1)) / cr
@@ -95,9 +114,7 @@ def load_and_process_data():
     body = np.where(df_ai['CLOSE'] > df_ai['OPEN'], 1, -1)
     df_ai['F4'] = np.select([(brk > 0.5) & (u_wick > 0.45), (brk > 0.3) & (body == 1) & (u_wick < 0.2), (brk > 0.5) & (l_wick > 0.45), (brk > 0.3) & (body == -1) & (l_wick < 0.2)], [2, 1, -2, -1], default=0)
 
-    ef = df_ai['CLOSE'].ewm(span=12, adjust=False).mean()
-    es = df_ai['CLOSE'].ewm(span=26, adjust=False).mean()
-    macd = ef - es
+    macd = df_ai['CLOSE'].ewm(span=12, adjust=False).mean() - df_ai['CLOSE'].ewm(span=26, adjust=False).mean()
     sig = macd.ewm(span=9, adjust=False).mean()
     hist = macd - sig
     d_hist = hist - hist.shift(1)
@@ -110,218 +127,196 @@ def load_and_process_data():
     rsi_sig = rsi.rolling(14).mean()
     df_ai['F6'] = np.select([rsi > 70, (rsi > 55) & (rsi > rsi_sig), rsi < 30, (rsi < 45) & (rsi < rsi_sig)], [2, 1, -2, -1], default=0)
 
-    ma20 = df_ai['CLOSE'].rolling(20).mean()
-    b_std = df_ai['CLOSE'].rolling(20).std()
-    b_up = ma20 + b_std * 2
-    b_low = ma20 - b_std * 2
-    b_diff = b_up - b_low
-    pct_b = (df_ai['CLOSE'] - b_low) / (b_diff + 1e-9)
-    bw = b_diff / (ma20 + 1e-9)
+    ma20, b_std = df_ai['CLOSE'].rolling(20).mean(), df_ai['CLOSE'].rolling(20).std()
+    pct_b = (df_ai['CLOSE'] - (ma20 - b_std * 2)) / (4 * b_std + 1e-9)
+    bw = (4 * b_std) / (ma20 + 1e-9)
     bw_ma = bw.rolling(20).mean()
     df_ai['F7'] = np.select([pct_b > 0.95, pct_b < 0.05, bw < bw_ma, (pct_b > 0.5) & (pct_b <= 0.95) & (bw >= bw_ma), (pct_b >= 0.05) & (pct_b <= 0.5) & (bw >= bw_ma)], [2, -2, 0, 1, -1], default=0)
-
     df_ai['F8'] = np.where(df_ai['Net'] > 0, 1, -1)
-
-    hpr = df_ai['CLOSE'].pct_change(3) * 100
-    skew = hpr.rolling(20).skew().fillna(0)
-    kurt = hpr.rolling(20).kurt().fillna(0)
+    
+    skew = df_ai['CLOSE'].pct_change(3).rolling(20).skew().fillna(0)
+    kurt = df_ai['CLOSE'].pct_change(3).rolling(20).kurt().fillna(0)
     market_regime = np.where(kurt.abs() > 2.0, 'Extremistan', 'Mediocristan')
     df_ai['F9'] = np.select([(skew > 0.8) & (market_regime == 'Mediocristan'), (skew > 0.2) & (skew <= 0.8), (skew < -0.8) & (kurt > 2.0), (skew >= -0.8) & (skew < -0.2)], [2, 1, -2, -1], default=0)
 
     score_cols = [f'F{i}' for i in range(1, 10)]
     df_ai['Composite_Score'] = df_ai[score_cols].sum(axis=1)
 
-    # --- MÁY TRẠNG THÁI WYCKOFF (TỪ BẢN CODE V8.0 GỐC) ---
+    # --- MÁY TRẠNG THÁI WYCKOFF ---
     wyckoff_phases = []
     current_phase = 'Phase E (Trend)'
     days_in_phase = 0
-
     for i in range(len(df_ai)):
         f1, f2, f3, f4, f5, f6, f7, f9 = df_ai.loc[i, ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F9']]
         comp_score = df_ai.loc[i, 'Composite_Score']
-        
         vector_norm = abs(f1) + abs(f3) + abs(f6) + abs(f7) + abs(f9)
-
-        if current_phase == 'Phase E (Trend)':
-            if vector_norm >= 6 and (f6 in [-2, 2] or f9 in [-2, 2]):
-                current_phase = 'Phase A (Climax/Stop)'
-                days_in_phase = 0
-
+        if current_phase == 'Phase E (Trend)' and vector_norm >= 6 and (f6 in [-2, 2] or f9 in [-2, 2]):
+            current_phase, days_in_phase = 'Phase A (Climax/Stop)', 0
         elif current_phase == 'Phase A (Climax/Stop)':
             days_in_phase += 1
-            if days_in_phase > 3 and abs(comp_score) <= 4 and f3 <= 0:
-                current_phase = 'Phase B (Building Cause)'
-                days_in_phase = 0
-
+            if days_in_phase > 3 and abs(comp_score) <= 4 and f3 <= 0: current_phase, days_in_phase = 'Phase B (Building Cause)', 0
         elif current_phase == 'Phase B (Building Cause)':
             days_in_phase += 1
-            if days_in_phase >= 15:
-                if (f3 == -2) or (f4 in [-2, 2]) or (f7 in [-2, 2]):
-                    current_phase = 'Phase C (Shakeout/Test)'
-                    days_in_phase = 0
-            elif days_in_phase > 5 and abs(f2) == 2:
-                current_phase = 'Phase E (Trend)'
-                days_in_phase = 0
-
+            if days_in_phase >= 15 and ((f3 == -2) or (f4 in [-2, 2]) or (f7 in [-2, 2])): current_phase, days_in_phase = 'Phase C (Shakeout/Test)', 0
+            elif days_in_phase > 5 and abs(f2) == 2: current_phase, days_in_phase = 'Phase E (Trend)', 0
         elif current_phase == 'Phase C (Shakeout/Test)':
             days_in_phase += 1
-            if days_in_phase <= 7 and abs(f1) >= 1 and abs(f5) >= 1:
-                current_phase = 'Phase D (Trend in TR)'
-                days_in_phase = 0
-            elif days_in_phase > 7:
-                current_phase = 'Phase B (Building Cause)'
-
+            if days_in_phase <= 7 and abs(f1) >= 1 and abs(f5) >= 1: current_phase, days_in_phase = 'Phase D (Trend in TR)', 0
+            elif days_in_phase > 7: current_phase = 'Phase B (Building Cause)'
         elif current_phase == 'Phase D (Trend in TR)':
             days_in_phase += 1
-            if abs(f2) == 2 and abs(f1) == 2:
-                current_phase = 'Phase E (Trend)'
-                days_in_phase = 0
-            elif days_in_phase > 10 and abs(f1) == 0:
-                current_phase = 'Phase B (Building Cause)'
-
+            if abs(f2) == 2 and abs(f1) == 2: current_phase, days_in_phase = 'Phase E (Trend)', 0
+            elif days_in_phase > 10 and abs(f1) == 0: current_phase = 'Phase B (Building Cause)'
         wyckoff_phases.append(current_phase)
-
     df_ai['Wyckoff_Phase'] = wyckoff_phases
 
-    # --- BỘ LỌC ĐỈNH ĐÁY VÀ DYNAMIC REGIME (TỪ BẢN CODE V10.0 GỐC) ---
+    # --- BỘ LỌC ĐỈNH ĐÁY VÀ DYNAMIC REGIME ---
     df_ai['P_Smooth'] = savgol_filter(df_ai['CLOSE'], window_length=15, polyorder=3)
     df_ai['Velocity'] = np.gradient(df_ai['P_Smooth'])
-    df_ai['Velocity_Prev'] = df_ai['Velocity'].shift(1)
-    df_ai['Inflection'] = ((df_ai['Velocity'] * df_ai['Velocity_Prev']) < 0)
-
-    def classify_basic_inflection(row):
-        if not row['Inflection']: return 'None'
-        return 'Đáy' if row['Velocity'] > 0 else 'Đỉnh'
-
-    df_ai['Inflection_Type'] = df_ai.apply(classify_basic_inflection, axis=1)
+    df_ai['Inflection'] = ((df_ai['Velocity'] * df_ai['Velocity'].shift(1)) < 0)
+    df_ai['Inflection_Type'] = np.where(~df_ai['Inflection'], 'None', np.where(df_ai['Velocity'] > 0, 'Đáy', 'Đỉnh'))
 
     df_ai['HPR_3'] = df_ai['CLOSE'].pct_change(3) * 100
     df_ai['Regime_Zone'] = (df_ai['Inflection_Type'] != 'None').astype(int).cumsum()
 
-    def calculate_dynamic_moments(group):
+    def calc_moments(group):
         group['Dyn_Skew'] = group['HPR_3'].expanding(min_periods=4).skew()
         group['Dyn_Kurt'] = group['HPR_3'].expanding(min_periods=4).kurt()
         return group
-
-    df_ai = df_ai.groupby('Regime_Zone', group_keys=False).apply(calculate_dynamic_moments)
-    df_ai['Dyn_Skew'] = df_ai['Dyn_Skew'].ffill().fillna(0)
-    df_ai['Dyn_Kurt'] = df_ai['Dyn_Kurt'].ffill().fillna(0)
-
-    condition_extremistan = (df_ai['Dyn_Kurt'] > 1.5) | (df_ai['Dyn_Skew'].abs() > 1.2)
-    df_ai['Market_Regime'] = np.where(condition_extremistan, 'Extremistan (Rủi Ro)', 'Mediocristan (Bình Yên)')
+    df_ai = df_ai.groupby('Regime_Zone', group_keys=False).apply(calc_moments)
+    df_ai[['Dyn_Skew', 'Dyn_Kurt']] = df_ai[['Dyn_Skew', 'Dyn_Kurt']].ffill().fillna(0)
+    df_ai['Market_Regime'] = np.where((df_ai['Dyn_Kurt'] > 1.5) | (df_ai['Dyn_Skew'].abs() > 1.2), 'Extremistan (Rủi Ro)', 'Mediocristan (Bình Yên)')
 
     return df_ai
 
-# Chạy hàm tạo dữ liệu
-with st.spinner('Đang tổng hợp Dữ liệu Vĩ mô & Order Flow...'):
+with st.spinner('Loading Core Engine...'):
     df_full = load_and_process_data()
 
-# Lấy 1 năm gần nhất cho đồ thị (để tránh rác như bản gốc của bạn)
+# Lọc dữ liệu 1 năm cho hiển thị đẹp
 one_year_ago = pd.Timestamp.now() - pd.Timedelta(days=365)
-df_plot = df_full[df_full['DATE'] >= pd.to_datetime(one_year_ago)].copy().reset_index(drop=True)
-if 'Net' in df_plot.columns:
-    df_plot['CVD'] = df_plot['Net'].cumsum() # Reset CVD scale
+df = df_full[df_full['DATE'] >= pd.to_datetime(one_year_ago)].copy().reset_index(drop=True)
+if 'Net' in df.columns: df['CVD'] = df['Net'].cumsum()
+
+# Tạo Metrics Top Bar
+col1, col2, col3, col4 = st.columns(4)
+with col1: st.metric(label="Mức giá hiện tại (VNINDEX)", value=f"{df['CLOSE'].iloc[-1]:,.2f}", delta=f"{df['CLOSE'].iloc[-1] - df['CLOSE'].iloc[-2]:.2f}")
+with col2: st.metric(label="Thanh khoản thị trường (Phiên cuối)", value=f"{df['VOLUME'].iloc[-1]/1e6:,.0f} M", delta=f"{(df['VOLUME'].iloc[-1]-df['VOLUME'].iloc[-2])/1e6:.0f} M")
+with col3: st.metric(label="Khối lượng Mua/Bán Ròng (Phiên cuối)", value=f"{df['Net'].iloc[-1]/1e6:,.0f} M", delta="Tích cực" if df['Net'].iloc[-1] > 0 else "Tiêu cực", delta_color="normal" if df['Net'].iloc[-1] > 0 else "inverse")
+with col4: st.metric(label="Giai đoạn Wyckoff Vĩ mô", value=df['Wyckoff_Phase'].iloc[-1])
 
 # =================================================================================
-# GIAO DIỆN WEB: CHIA 2 TABS CHÍNH
+# THIẾT KẾ PLOTLY CHART (THAY THẾ MATPLOTLIB)
 # =================================================================================
-plt.style.use('dark_background')
-tab1, tab2 = st.tabs(["📊 PHẦN 1&2: WYCKOFF PHASES & ORDER FLOW", "⚠️ PHẦN 3: BẢN ĐỒ RỦI RO (REGIME)"])
-
-# ---------------------------------------------------------------------------------
-# TAB 1: WYCKOFF & ORDER FLOW (TỪ V8.0 GỐC)
-# ---------------------------------------------------------------------------------
-with tab1:
-    fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(24, 14), gridspec_kw={'height_ratios': [2, 1]}, sharex=True)
-    plt.subplots_adjust(hspace=0.05)
-
-    ax1.plot(df_plot['DATE'], df_plot['CLOSE'], color='white', linewidth=2, zorder=5, label='VNINDEX')
-
-    phase_colors = {
-        'Phase A (Climax/Stop)': 'crimson',       
-        'Phase B (Building Cause)': 'dimgray',    
-        'Phase C (Shakeout/Test)': 'goldenrod',   
-        'Phase D (Trend in TR)': 'dodgerblue',    
-        'Phase E (Trend)': 'limegreen'            
+# Bảng màu phong cách Fintech
+COLORS = {
+    'bg': '#121212', 'paper': '#1E1E1E', 'grid': '#333333', 
+    'price': '#FFFFFF', 'smooth': '#CCFF00', 'cvd': '#D4F84F',
+    'up': '#00E676', 'down': '#FF1744', 'inflect': '#FF00FF',
+    'phases': {
+        'Phase A (Climax/Stop)': 'rgba(255, 23, 68, 0.15)',
+        'Phase B (Building Cause)': 'rgba(128, 128, 128, 0.1)',
+        'Phase C (Shakeout/Test)': 'rgba(255, 196, 0, 0.15)',
+        'Phase D (Trend in TR)': 'rgba(0, 176, 255, 0.15)',
+        'Phase E (Trend)': 'rgba(0, 230, 118, 0.15)'
     }
+}
 
+tab1, tab2 = st.tabs(["📊 WYCKOFF PHASES & ORDER FLOW", "⚠️ DYNAMIC MARKET REGIME"])
+
+with tab1:
+    # Chart 1: VNINDEX & Wyckoff
+    fig1 = go.Figure()
+    
+    # Vẽ các dải màu Wyckoff Phases
     start_idx = 0
-    for i in range(1, len(df_plot)):
-        if df_plot.loc[i, 'Wyckoff_Phase'] != df_plot.loc[i-1, 'Wyckoff_Phase'] or i == len(df_plot) - 1:
-            phase = df_plot.loc[i-1, 'Wyckoff_Phase']
-            color = phase_colors.get(phase, 'black')
-            ax1.axvspan(df_plot.loc[start_idx, 'DATE'], df_plot.loc[i, 'DATE'], color=color, alpha=0.35, zorder=1)
+    for i in range(1, len(df)):
+        if df.loc[i, 'Wyckoff_Phase'] != df.loc[i-1, 'Wyckoff_Phase'] or i == len(df) - 1:
+            phase = df.loc[i-1, 'Wyckoff_Phase']
+            fig1.add_vrect(x0=df.loc[start_idx, 'DATE'], x1=df.loc[i, 'DATE'], 
+                           fillcolor=COLORS['phases'].get(phase, 'rgba(0,0,0,0)'), 
+                           layer="below", line_width=0, name=phase)
             start_idx = i
 
-    ax1.set_title('E.V QUANT TERMINAL: WYCKOFF PHASES & ORDER FLOW X-RAY', fontsize=22, fontweight='bold', color='white', pad=20)
-    ax1.set_ylabel('Điểm số VNINDEX', fontsize=14, color='white')
-    ax1.yaxis.grid(True, linestyle='--', alpha=0.3)
+    fig1.add_trace(go.Scatter(x=df['DATE'], y=df['CLOSE'], mode='lines', line=dict(color=COLORS['price'], width=2), name='VNINDEX'))
+    fig1.add_trace(go.Scatter(x=df['DATE'], y=df['P_Smooth'], mode='lines', line=dict(color=COLORS['smooth'], width=1.5, dash='dash'), name='SG Filter'))
+    
+    inflections = df[df['Inflection'] == True]
+    fig1.add_trace(go.Scatter(x=inflections['DATE'], y=inflections['P_Smooth'], mode='markers', marker=dict(color=COLORS['inflect'], size=10), name='Điểm Uốn'))
 
-    legend_patches = [mpatches.Patch(color=color, alpha=0.5, label=phase) for phase, color in phase_colors.items()]
-    ax1.legend(handles=legend_patches, loc='upper center', bbox_to_anchor=(0.5, 1.08), ncol=5, frameon=False, fontsize=14)
+    fig1.update_layout(
+        title="WYCKOFF 5 PHASES & SG DYNAMICS", title_font=dict(size=20, color='white'),
+        plot_bgcolor=COLORS['bg'], paper_bgcolor=COLORS['paper'],
+        xaxis=dict(showgrid=True, gridcolor=COLORS['grid'], rangeslider=dict(visible=True, thickness=0.08)), # <--- SLICER Ở ĐÂY
+        yaxis=dict(showgrid=True, gridcolor=COLORS['grid']),
+        margin=dict(l=20, r=20, t=50, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig1, use_container_width=True)
 
-    colors = np.where(df_plot['Net'] > 0, 'limegreen', 'crimson')
-    ax2.bar(df_plot['DATE'], df_plot['Net'] / 1e9, color=colors, alpha=0.8, width=1, label='Net Order Flow (Tỷ Cổ phiếu)')
+    # Chart 2: SG Velocity & Order Flow (Subplots)
+    fig2 = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, 
+                         subplot_titles=("ĐỘNG HỌC SG FILTER (Vận Tốc)", "MUA BÁN CHỦ ĐỘNG (Order Flow) & CVD"),
+                         specs=[[{"secondary_y": False}], [{"secondary_y": True}]])
 
-    ax3 = ax2.twinx()
-    if 'CVD' in df_plot.columns:
-        ax3.plot(df_plot['DATE'], df_plot['CVD'] / 1e9, color='gold', linewidth=2.5, label='CVD (Tích lũy Lực Mua Ròng)')
+    # Velocity (Tô màu xanh/đỏ)
+    pos_v = df['Velocity'].copy(); pos_v[pos_v < 0] = 0
+    neg_v = df['Velocity'].copy(); neg_v[neg_v > 0] = 0
+    fig2.add_trace(go.Scatter(x=df['DATE'], y=pos_v, fill='tozeroy', line=dict(color=COLORS['up'], width=1), name='Hướng Lên'), row=1, col=1)
+    fig2.add_trace(go.Scatter(x=df['DATE'], y=neg_v, fill='tozeroy', line=dict(color=COLORS['down'], width=1), name='Hướng Xuống'), row=1, col=1)
+    fig2.add_hline(y=0, line_dash="dash", line_color="gray", row=1, col=1)
 
-    ax2.set_ylabel('Net Delta (Tỷ CP)', fontsize=12, color='white')
-    ax3.set_ylabel('CVD Line (Gold)', fontsize=12, color='gold')
-    ax2.yaxis.grid(True, linestyle='--', alpha=0.2)
+    # Order Flow Bar
+    colors_net = np.where(df['Net'] > 0, COLORS['up'], COLORS['down'])
+    fig2.add_trace(go.Bar(x=df['DATE'], y=df['Net'], marker_color=colors_net, name='Net Delta'), row=2, col=1, secondary_y=False)
+    # CVD Line
+    if 'CVD' in df.columns:
+        fig2.add_trace(go.Scatter(x=df['DATE'], y=df['CVD'], mode='lines', line=dict(color=COLORS['cvd'], width=2.5), name='CVD (Tích lũy)'), row=2, col=1, secondary_y=True)
 
-    ax2.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-    plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, ha='right', fontsize=12)
+    fig2.update_layout(
+        plot_bgcolor=COLORS['bg'], paper_bgcolor=COLORS['paper'], height=500,
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1)
+    )
+    fig2.update_xaxes(showgrid=True, gridcolor=COLORS['grid'])
+    fig2.update_yaxes(showgrid=True, gridcolor=COLORS['grid'])
+    st.plotly_chart(fig2, use_container_width=True)
 
-    st.pyplot(fig1)
-
-# ---------------------------------------------------------------------------------
-# TAB 2: BẢN ĐỒ RỦI RO (TỪ V10.0 GỐC)
-# ---------------------------------------------------------------------------------
 with tab2:
-    fig2, (ax4, ax5, ax6) = plt.subplots(3, 1, figsize=(24, 16), gridspec_kw={'height_ratios': [2, 1, 1.5]}, sharex=True)
-    plt.subplots_adjust(hspace=0.1)
+    # Chart 3: Market Regime
+    fig3 = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05,
+                         subplot_titles=("VNINDEX & RANH GIỚI RESET", "LỢI NHUẬN T+3 (HPR_3)", "CHỈ SỐ HÌNH THÁI (Skewness/Kurtosis)"))
 
-    ax4.plot(df_plot['DATE'], df_plot['CLOSE'], color='white', linewidth=2, label='VNINDEX')
-    ax4.set_title('PHẦN 3: BẢN ĐỒ RỦI RO (DYNAMIC T+3 MARKET REGIME)', fontsize=22, fontweight='bold', color='gold', pad=20)
-    ax4.set_ylabel('VNINDEX', fontsize=14, color='white')
-    ax4.yaxis.grid(True, linestyle='--', alpha=0.3)
-
-    inflections = df_plot[df_plot['Inflection_Type'] != 'None']
+    # Giá & Ranh giới
+    fig3.add_trace(go.Scatter(x=df['DATE'], y=df['CLOSE'], mode='lines', line=dict(color=COLORS['price'], width=2), name='VNINDEX'), row=1, col=1)
     for idx, row in inflections.iterrows():
-        color = 'limegreen' if row['Inflection_Type'] == 'Đáy' else 'crimson'
-        ax4.axvline(x=row['DATE'], color=color, linestyle='--', linewidth=1.5, alpha=0.8)
-        ax4.scatter(row['DATE'], row['CLOSE'], color=color, s=150, zorder=5)
+        c = COLORS['up'] if row['Inflection_Type'] == 'Đáy' else COLORS['down']
+        fig3.add_vline(x=row['DATE'], line_dash="dash", line_color=c, opacity=0.6, row=1, col=1)
+        fig3.add_trace(go.Scatter(x=[row['DATE']], y=[row['CLOSE']], mode='markers', marker=dict(color=c, size=10), showlegend=False), row=1, col=1)
 
-    colors_hpr = np.where(df_plot['HPR_3'] > 0, 'limegreen', 'crimson')
-    ax5.bar(df_plot['DATE'], df_plot['HPR_3'], color=colors_hpr, alpha=0.7, width=1.5, label='Lợi nhuận T+3 (%)')
-    ax5.axhline(0, color='white', linewidth=1)
-    ax5.set_ylabel('T+3 Return (%)', fontsize=12, color='white')
-    ax5.yaxis.grid(True, linestyle='--', alpha=0.3)
-    ax5.legend(loc='upper left', frameon=False, fontsize=12)
+    # Lợi nhuận T+3
+    colors_hpr = np.where(df['HPR_3'] > 0, COLORS['up'], COLORS['down'])
+    fig3.add_trace(go.Bar(x=df['DATE'], y=df['HPR_3'], marker_color=colors_hpr, name='HPR T+3'), row=2, col=1)
 
-    ax6.fill_between(df_plot['DATE'], -3, 3, where=(df_plot['Market_Regime'] == 'Extremistan (Rủi Ro)'), color='darkred', alpha=0.3, label='Vùng Extremistan (Rủi ro cao)')
-    ax6.fill_between(df_plot['DATE'], -3, 3, where=(df_plot['Market_Regime'] == 'Mediocristan (Bình Yên)'), color='darkgreen', alpha=0.2, label='Vùng Mediocristan (An toàn)')
+    # Skew & Kurt
+    fig3.add_trace(go.Scatter(x=df['DATE'], y=df['Dyn_Skew'], mode='lines', line=dict(color='#00E5FF', width=2), name='Skewness'), row=3, col=1)
+    fig3.add_trace(go.Scatter(x=df['DATE'], y=df['Dyn_Kurt'], mode='lines', line=dict(color='#D500F9', width=2, dash='dash'), name='Kurtosis'), row=3, col=1)
+    
+    # Tô màu nền Extremistan
+    start_idx = 0
+    for i in range(1, len(df)):
+        if df.loc[i, 'Market_Regime'] != df.loc[i-1, 'Market_Regime'] or i == len(df) - 1:
+            regime = df.loc[i-1, 'Market_Regime']
+            c = 'rgba(255, 23, 68, 0.1)' if 'Extremistan' in regime else 'rgba(0, 230, 118, 0.05)'
+            fig3.add_vrect(x0=df.loc[start_idx, 'DATE'], x1=df.loc[i, 'DATE'], fillcolor=c, layer="below", line_width=0, row=3, col=1)
+            start_idx = i
 
-    ax6.plot(df_plot['DATE'], df_plot['Dyn_Skew'], color='cyan', linewidth=2.5, label='Độ Lệch Histogram (Skewness)')
-    ax6.axhline(1.2, color='cyan', linestyle=':', alpha=0.5)
-    ax6.axhline(-1.2, color='cyan', linestyle=':', alpha=0.5)
-
-    ax6.plot(df_plot['DATE'], df_plot['Dyn_Kurt'], color='magenta', linewidth=2, linestyle='--', label='Độ Nhọn Đuôi Béo (Kurtosis)')
-    ax6.axhline(1.5, color='magenta', linestyle=':', alpha=0.5)
-    ax6.axhline(0, color='gray', linewidth=1)
-
-    ax6.set_ylabel('Chỉ số Hình thái (Skew/Kurt)', fontsize=12, color='white')
-    ax6.set_ylim(-3.5, 3.5)
-    ax6.yaxis.grid(True, linestyle='--', alpha=0.3)
-
-    handles, labels = ax6.get_legend_handles_labels()
-    ax6.legend(handles, labels, loc='upper left', ncol=4, frameon=True, facecolor='black', fontsize=11)
-
-    ax6.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
-    ax6.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-    plt.setp(ax6.xaxis.get_majorticklabels(), rotation=45, ha='right', fontsize=12)
-
-    st.pyplot(fig2)
+    fig3.update_layout(
+        plot_bgcolor=COLORS['bg'], paper_bgcolor=COLORS['paper'], height=700,
+        xaxis3=dict(rangeslider=dict(visible=True, thickness=0.05)), # <--- SLICER CHO REGIME CHART
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig3.update_xaxes(showgrid=True, gridcolor=COLORS['grid'])
+    fig3.update_yaxes(showgrid=True, gridcolor=COLORS['grid'])
+    
+    st.plotly_chart(fig3, use_container_width=True)
