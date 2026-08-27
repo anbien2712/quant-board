@@ -41,7 +41,7 @@ def load_and_process_data():
         df_vni = pd.DataFrame()
 
     # 2. XỬ LÝ FILE ORDER FLOW
-    file_path = "data/MuaBanChuDong_Explore.csv"
+    file_path = "data/MuaBanChuDong_Explore.csv.gz"
     if os.path.exists(file_path):
         df_of = pd.read_csv(file_path)
         df_of['Ngay'] = pd.to_datetime(df_of['Ngay'])
