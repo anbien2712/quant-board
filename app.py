@@ -200,8 +200,8 @@ def load_and_process_data():
         return group
 
     df_ai = df_ai.groupby('Regime_Zone', group_keys=False).apply(calculate_dynamic_moments)
-    df_ai['Dyn_Skew'] = df_ai['Dyn_Skew'].fillna(method='ffill').fillna(0)
-    df_ai['Dyn_Kurt'] = df_ai['Dyn_Kurt'].fillna(method='ffill').fillna(0)
+    df_ai['Dyn_Skew'] = df_ai['Dyn_Skew'].ffill().fillna(0)
+    df_ai['Dyn_Kurt'] = df_ai['Dyn_Kurt'].ffill().fillna(0)
 
     condition_extremistan = (df_ai['Dyn_Kurt'] > 1.5) | (df_ai['Dyn_Skew'].abs() > 1.2)
     df_ai['Market_Regime'] = np.where(condition_extremistan, 'Extremistan (Rủi Ro)', 'Mediocristan (Bình Yên)')
